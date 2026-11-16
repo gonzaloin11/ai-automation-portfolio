@@ -1,0 +1,168 @@
+{
+  "name": "ML Tool - Detalle Producto",
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "jsonExample",
+        "jsonExample": "{\n  \"item_id\": \"MLA1234567890\"\n}"
+      },
+      "id": "t2-trigger",
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        208,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT access_token FROM ml_tokens WHERE app_id = 'vitagel' LIMIT 1",
+        "options": {}
+      },
+      "id": "t2-get-token",
+      "name": "Get ML Token",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        432,
+        304
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "url": "=https://api.mercadolibre.com/items/{{ $('Execute Workflow Trigger').item.json.item_id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Get ML Token').item.json.access_token }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "t2-get-item",
+      "name": "Get Item Info",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        640,
+        304
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "url": "=https://api.mercadolibre.com/items/{{ $('Execute Workflow Trigger').item.json.item_id }}/description",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Get ML Token').item.json.access_token }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "t2-get-desc",
+      "name": "Get Item Description",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        864,
+        304
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $('Get Item Info').first().json;\nconst descData = $input.first().json;\n\nif (!item || !item.id) {\n  return [{ json: { result: 'No se pudo obtener la información del producto. Verificá el ID.' } }];\n}\n\nconst precio = item.price ? `$${item.price.toLocaleString('es-AR')}` : 'Sin precio';\nconst precioOriginal = item.original_price && item.original_price > item.price\n  ? `$${item.original_price.toLocaleString('es-AR')}` : null;\nconst descuento = precioOriginal \n  ? `${Math.round((1 - item.price / item.original_price) * 100)}% OFF` : 'Sin descuento';\n\n// Atributos relevantes\nconst atributos = (item.attributes || [])\n  .filter(a => ['BRAND', 'UNITS_PER_PACK', 'NET_WEIGHT', 'FLAVOR'].includes(a.id))\n  .map(a => `${a.name}: ${a.value_name}`)\n  .join('\\n   ');\n\n// Shipping\nconst shipping = item.shipping?.free_shipping ? 'Envío gratis' : 'Con costo de envío';\n\n// Descripción\nconst descripcion = descData.plain_text \n  ? descData.plain_text.substring(0, 500) + (descData.plain_text.length > 500 ? '...' : '')\n  : 'Sin descripción disponible';\n\nlet result = `📍 DETALLE DEL PRODUCTO\\n\\n`;\nresult += `📌 Título: ${item.title}\\n`;\nresult += `🏷️ ID: ${item.id}\\n`;\nresult += `💰 Precio: ${precio}`;\nif (precioOriginal) result += ` (antes ${precioOriginal} - ${descuento})`;\nresult += `\\n`;\nresult += `📦 Stock: ${item.available_quantity} unidades\\n`;\nresult += `🚚 ${shipping}\\n`;\nresult += `📊 Estado: ${item.status}\\n`;\nif (atributos) result += `🏷️ Atributos:\\n   ${atributos}\\n`;\nresult += `\\n📝 Descripción:\\n${descripcion}\\n`;\nresult += `\\n🔗 Link: ${item.permalink}`;\n\nreturn [{ json: { result } }];"
+      },
+      "id": "t2-format",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1088,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## ML Tool - Detalle Producto\n**Input**: item_id (ej: MLA1234567890)\n**Output**: Info completa: título, precio, stock, descripción, atributos, shipping\n**Llamado por**: AI Agent Lía via toolWorkflow"
+      },
+      "id": "t2-sticky",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        160,
+        128
+      ]
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get ML Token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get ML Token": {
+      "main": [
+        [
+          {
+            "node": "Get Item Info",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Item Info": {
+      "main": [
+        [
+          {
+            "node": "Get Item Description",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Item Description": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Argentina/Buenos_Aires",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "Q7Re72V4C7cxIQNR"
+  }
+}

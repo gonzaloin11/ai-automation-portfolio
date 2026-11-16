@@ -1,0 +1,1510 @@
+{
+  "name": "Vitagel AI Agent - WhatsApp Lía",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "vitagel-lia-wapp",
+        "options": {}
+      },
+      "id": "wh-vitagel",
+      "name": "Webhook1",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -4592,
+        704
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "cond-audio",
+                    "leftValue": "={{ $json.body.data.message.audioMessage.mimetype }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "string",
+                      "operation": "exists",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Audio"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "cond-texto",
+                    "leftValue": "={{ $json.body.data.message.conversation }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "string",
+                      "operation": "exists",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Texto"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "cond-extended",
+                    "leftValue": "={{ $json.body.data.message.extendedTextMessage.text }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "string",
+                      "operation": "exists",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "ExtendedText"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra",
+          "renameFallbackOutput": "Unsupported"
+        }
+      },
+      "id": "sw-input-type",
+      "name": "Route Input Type",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        -3632,
+        368
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Webhook1').item.json.body.server_url }}/chat/getBase64FromMediaMessage/{{ $('Webhook1').item.json.body.instance }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $('Webhook1').item.json.body.apikey }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"message\": {\n    \"key\": {\n      \"remoteJid\": \"{{ $('Webhook1').item.json.body.data.key.remoteJid }}\",\n      \"fromMe\": false,\n      \"id\": \"{{ $('Webhook1').item.json.body.data.key.id }}\"\n    }\n  },\n  \"convertToMp4\": false\n}",
+        "options": {}
+      },
+      "id": "http-download-audio",
+      "name": "Download Audio from Evolution",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -3408,
+        96
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = [];\nfor (const item of $input.all()) {\n  const base64 = item.json.base64;\n  const mimeType = item.json.mimetype || 'audio/ogg; codecs=opus';\n  const fileName = item.json.fileName || 'audio.ogg';\n  \n  const binaryData = await this.helpers.prepareBinaryData(\n    Buffer.from(base64, 'base64'),\n    fileName,\n    mimeType\n  );\n  \n  items.push({\n    json: item.json,\n    binary: { data: binaryData }\n  });\n}\nreturn items;"
+      },
+      "id": "code-base64-audio",
+      "name": "Convert Base64 to Audio",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3184,
+        96
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "resource": "audio",
+        "operation": "transcribe",
+        "options": {}
+      },
+      "id": "openai-transcribe",
+      "name": "Transcribe a recording",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        -2960,
+        96
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "af1",
+              "name": "chat_id",
+              "value": "={{ $('Webhook1').item.json.body.data.key.remoteJid }}",
+              "type": "string"
+            },
+            {
+              "id": "af2",
+              "name": "instance_name",
+              "value": "={{ $('Webhook1').item.json.body.instance }}",
+              "type": "string"
+            },
+            {
+              "id": "af3",
+              "name": "apikey",
+              "value": "={{ $('Webhook1').item.json.body.apikey }}",
+              "type": "string"
+            },
+            {
+              "id": "af4",
+              "name": "url_server",
+              "value": "={{ $('Webhook1').item.json.body.server_url }}",
+              "type": "string"
+            },
+            {
+              "id": "af5",
+              "name": "full_name",
+              "value": "={{ $('Webhook1').item.json.body.data.pushName }}",
+              "type": "string"
+            },
+            {
+              "id": "af6",
+              "name": "date_time",
+              "value": "={{ $('Webhook1').item.json.body.date_time }}",
+              "type": "string"
+            },
+            {
+              "id": "af7",
+              "name": "user_message",
+              "value": "={{ $json.text }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set-audio-fields",
+      "name": "Edit Fields1",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -2736,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "tf1",
+              "name": "chat_id",
+              "value": "={{ $('Webhook1').item.json.body.data.key.remoteJid }}",
+              "type": "string"
+            },
+            {
+              "id": "tf2",
+              "name": "instance_name",
+              "value": "={{ $('Webhook1').item.json.body.instance }}",
+              "type": "string"
+            },
+            {
+              "id": "tf3",
+              "name": "apikey",
+              "value": "={{ $('Webhook1').item.json.body.apikey }}",
+              "type": "string"
+            },
+            {
+              "id": "tf4",
+              "name": "url_server",
+              "value": "={{ $('Webhook1').item.json.body.server_url }}",
+              "type": "string"
+            },
+            {
+              "id": "tf5",
+              "name": "full_name",
+              "value": "={{ $('Webhook1').item.json.body.data.pushName }}",
+              "type": "string"
+            },
+            {
+              "id": "tf6",
+              "name": "date_time",
+              "value": "={{ $('Webhook1').item.json.body.date_time }}",
+              "type": "string"
+            },
+            {
+              "id": "tf7",
+              "name": "user_message",
+              "value": "={{ $('Webhook1').item.json.body.data.message.conversation }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set-text-fields",
+      "name": "Edit Fields2",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -2512,
+        288
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "et1",
+              "name": "chat_id",
+              "value": "={{ $('Webhook1').item.json.body.data.key.remoteJid }}",
+              "type": "string"
+            },
+            {
+              "id": "et2",
+              "name": "instance_name",
+              "value": "={{ $('Webhook1').item.json.body.instance }}",
+              "type": "string"
+            },
+            {
+              "id": "et3",
+              "name": "apikey",
+              "value": "={{ $('Webhook1').item.json.body.apikey }}",
+              "type": "string"
+            },
+            {
+              "id": "et4",
+              "name": "url_server",
+              "value": "={{ $('Webhook1').item.json.body.server_url }}",
+              "type": "string"
+            },
+            {
+              "id": "et5",
+              "name": "full_name",
+              "value": "={{ $('Webhook1').item.json.body.data.pushName }}",
+              "type": "string"
+            },
+            {
+              "id": "et6",
+              "name": "date_time",
+              "value": "={{ $('Webhook1').item.json.body.date_time }}",
+              "type": "string"
+            },
+            {
+              "id": "et7",
+              "name": "user_message",
+              "value": "={{ $('Webhook1').item.json.body.data.message.extendedTextMessage.text }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set-extended-text",
+      "name": "Edit Fields3",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -2512,
+        480
+      ],
+      "notes": "Handles extendedTextMessage (quoted replies, links, etc)"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "eu1",
+              "name": "sessionId",
+              "value": "=vitagel_{{ $('Webhook1').item.json.body.data.key.remoteJid }}",
+              "type": "string"
+            },
+            {
+              "id": "eu2",
+              "name": "user_message",
+              "value": "={{ $json.user_message }}",
+              "type": "string"
+            },
+            {
+              "id": "eu3",
+              "name": "chat_id",
+              "value": "={{ $json.chat_id }}",
+              "type": "string"
+            },
+            {
+              "id": "eu4",
+              "name": "date_time",
+              "value": "={{ $json.date_time }}",
+              "type": "string"
+            },
+            {
+              "id": "eu5",
+              "name": "full_name",
+              "value": "={{ $json.full_name }}",
+              "type": "string"
+            },
+            {
+              "id": "eu6",
+              "name": "instance_name",
+              "value": "={{ $json.instance_name }}",
+              "type": "string"
+            },
+            {
+              "id": "eu7",
+              "name": "apikey",
+              "value": "={{ $json.apikey }}",
+              "type": "string"
+            },
+            {
+              "id": "eu8",
+              "name": "url_server",
+              "value": "={{ $json.url_server }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set-extract-user",
+      "name": "Extract User Data1",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -2288,
+        384
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Vitagel AI Agent - WhatsApp Lía\n\n**Instancia Evolution:** VitagelNegocio\n**Webhook:** /webhook/vitagel-lia-wapp\n\n**Fases:**\n1. ✅ Ingesta (Webhook + Audio/Texto)\n2. ✅ Buffer Redis anti-fragmentación\n3. ✅ Agente Lía + GPT-4o-mini + PG Memory (10 msgs)\n4. ✅ Envío respuesta WhatsApp (HTTP Evolution)\n5. ⬜ Guardrails (Link Guard + Security)\n6. ⬜ Observabilidad (Sticky Notes + Error handling)\n\n**SessionId:** vitagel_{remoteJid}\n**Redis prefix:** vitagel:buffer:{phone}\n**PG Memory table:** vitagel_chat_histories\n**Model:** GPT-4o-mini (temp 0.7)",
+        "height": 480,
+        "width": 480
+      },
+      "id": "sticky-vitagel-info",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -4496,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "push",
+        "list": "=vitagel:buffer:{{ $json.chat_id }}",
+        "messageData": "={{ JSON.stringify({ \"message\": $json.user_message, \"sessionId\": $json.sessionId, \"date_time\": $now.toUTC().toISO() }) }}",
+        "tail": true
+      },
+      "id": "redis-buffer-push",
+      "name": "Buffer",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        -2064,
+        384
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "propertyName": "message",
+        "key": "=vitagel:buffer:{{ $('Extract User Data1').item.json.chat_id }}",
+        "options": {}
+      },
+      "id": "redis-get-buffer",
+      "name": "Get buffer data",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        -1840,
+        384
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "cond-ignorar",
+                    "leftValue": "={{ $json.message.last().parseJson().message }}",
+                    "rightValue": "={{ $('Extract User Data1').item.json.user_message }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "notEquals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "ignorar"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "cond-continuar",
+                    "leftValue": "={{ JSON.parse($json.message.last()).date_time }}",
+                    "rightValue": "={{ $now.minus(7, 'seconds').toLocal() }}",
+                    "operator": {
+                      "type": "dateTime",
+                      "operation": "before"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "continuar"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra",
+          "renameFallbackOutput": "esperar"
+        }
+      },
+      "id": "sw-buffer-check",
+      "name": "Switch Buffer",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        -1616,
+        272
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "noop-ignorar",
+      "name": "No Operation, do nothing",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        -1392,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "amount": 7
+      },
+      "id": "wait-7s",
+      "name": "Wait",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -1392,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "key": "=vitagel:buffer:{{ $('Extract User Data1').item.json.chat_id }}"
+      },
+      "id": "redis-delete-buffer",
+      "name": "Delete buffer",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        -1392,
+        288
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "cf1",
+              "name": "concat_message",
+              "value": "={{ $json.message.map(m => JSON.parse(m).message).join('\\n') }}",
+              "type": "string"
+            },
+            {
+              "id": "cf2",
+              "name": "sessionId",
+              "value": "={{ $('Extract User Data1').item.json.sessionId }}",
+              "type": "string"
+            },
+            {
+              "id": "cf3",
+              "name": "message_count",
+              "value": "={{ $json.message.length }}",
+              "type": "number"
+            },
+            {
+              "id": "cf4",
+              "name": "chat_id",
+              "value": "={{ $('Extract User Data1').item.json.chat_id }}",
+              "type": "string"
+            },
+            {
+              "id": "cf5",
+              "name": "full_name",
+              "value": "={{ $('Extract User Data1').item.json.full_name }}",
+              "type": "string"
+            },
+            {
+              "id": "cf6",
+              "name": "instance_name",
+              "value": "={{ $('Extract User Data1').item.json.instance_name }}",
+              "type": "string"
+            },
+            {
+              "id": "cf7",
+              "name": "apikey",
+              "value": "={{ $('Extract User Data1').item.json.apikey }}",
+              "type": "string"
+            },
+            {
+              "id": "cf8",
+              "name": "url_server",
+              "value": "={{ $('Extract User Data1').item.json.url_server }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set-concat-msg",
+      "name": "Edit Fields",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1168,
+        288
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-5-mini",
+          "mode": "list",
+          "cachedResultName": "<redacted>"
+        },
+        "responsesApiEnabled": false,
+        "options": {
+          "temperature": 1
+        }
+      },
+      "id": "llm-lia",
+      "name": "Lía Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        -944,
+        512
+      ]
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $json.sessionId }}",
+        "tableName": "vitagel_chat_histories",
+        "contextWindowLength": 10
+      },
+      "id": "pg-memory-lia",
+      "name": "Lía Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
+      "typeVersion": 1.3,
+      "position": [
+        -816,
+        512
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Extract User Data1').item.json.url_server }}/message/sendText/{{ $('Extract User Data1').item.json.instance_name }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $('Extract User Data1').item.json.apikey }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"number\": \"{{ $('Extract User Data1').item.json.chat_id }}\",\n  \"text\": \"{{ $json.output.replace(/\\\"/g, '\\\\\"').replace(/\\n/g, '\\\\n') }}\"\n}",
+        "options": {}
+      },
+      "id": "http-send-wapp",
+      "name": "Send WhatsApp Response",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        128,
+        192
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.concat_message }}",
+        "options": {
+          "systemMessage": "=Sos Lía, asesora de ventas virtual de Vitagel, especializada en colágeno hidrolizado Vitagel®. Atendés clientes por WhatsApp. Tu objetivo es guiar cada conversación hacia una venta, de forma natural y consultiva.\nCONTEXTO:\n\nCliente: {{ $json.full_name }}\nFecha/hora: {{ $json.date_time }}\n\n═══════════════════════════════════════\n\nIDENTIDAD Y TONO\n═══════════════════════════════════════\n\n\nEn el primer mensaje, presentate como Lía de Vitagel y pedí el nombre del cliente para personalizar la atención.\nHablá en español argentino con voceo natural (vos, tenés, podés, querés, fijate, bancame, dale, mirá, re, genial, copado, bárbaro).\nTono: premium, cercano, profesional. Como una amiga que sabe del tema y te asesora con confianza.\nUsá expresiones naturales argentinas:\n\n\"Mirá, te cuento...\" en vez de \"Le informo que...\"\n\"Genial!\" o \"Bárbaro!\" en vez de \"Perfecto\"\n\"Bancame un segundito que te busco los precios\" en vez de \"Permítame consultar\"\n\"Dale, ahí te paso la info\" en vez de \"Con gusto le comparto\"\n\"¿Te copa?\" en vez de \"¿Le interesa?\"\n\"Re buena opción\" en vez de \"Excelente elección\"\n\"Cualquier cosita me escribís\" en vez de \"No dude en contactarnos\"\n\n\nNO suenes robótica. Evitá frases como \"Estaré encantado de ayudarte\", \"Es un placer asistirte\", \"Quedo a su disposición\".\nNO repitas \"Vitagel\" en cada frase — el cliente ya sabe de qué producto hablamos.\nRespuestas cortas y claras. Cuando listes productos usá un formato simple y fácil de leer.\nNO uses markdown, negrita, ni formato especial (esto es WhatsApp texto plano).\nMáximo 1-2 emojis por mensaje.\nEscribí siempre en positivo sobre el producto, sin exagerar ni prometer milagros.\n\n═══════════════════════════════════════\n2. REGLAS DE LINKS (CRÍTICA)\n═══════════════════════════════════════\nREGLA ABSOLUTA: NO enviés ningún link (tienda, redes, presentación) a menos que el cliente lo pida EXPLÍCITAMENTE.\nSolicitudes explícitas válidas:\n\n\"Pasame el link\"\n\"Quiero el link de la tienda\"\n\"Mandame la presentación\"\n\"¿Me pasás el enlace?\"\n\nSi el cliente pide precios o presentaciones → usá las tools ML para darle datos reales → después preguntá si quiere el link para comprar.\nEjemplo: \"El de 310g está a $39.900, te dura 30 días. ¿Querés que te pase el link directo para comprarlo?\"\nSolo si responde afirmativamente, enviá el permalink del producto (que te da la tool ML Detalle).\nLinks fijos disponibles:\n\nTienda MercadoLibre: https://www.mercadolibre.com.ar/pagina/vitagelarg\nPresentación/ficha: https://<canva-design-link>\nInstagram: https://www.instagram.com/stories/vitagelcolageno/\nTikTok: https://www.tiktok.com/@vitagelcolageno\n\n═══════════════════════════════════════\n3. ROL: VENDEDORA CONSULTIVA PERSUASIVA\n═══════════════════════════════════════\nPRINCIPIO FUNDAMENTAL: NO LARGUES EL PRECIO DE UNA.\nSi lo primero que das es el precio, matás la conversación. Primero preguntá, conectá, generá confianza, y DESPUÉS mostrá opciones.\nMANEJO DE LA CONVERSACIÓN:\n\nSIEMPRE preguntá primero: \"¿Para qué lo buscás?\" \"¿Lo querés para vos o para regalar?\" \"¿Ya tomaste colágeno antes?\"\nHacé que la conversación fluya antes de dar la info completa.\nSi el cliente siente que ya tiene toda la info sin esfuerzo, se va sin comprar.\nDesarrollá más la charla: no contestes con un bloque de texto. Anda de a poco, que la persona se enganche.\n\nLAS 3 RAZONES POR LAS QUE NO COMPRAN:\n\nNo confía en el producto → Resolvelo contando beneficios reales, origen suizo, calidad.\nNo confía en vos como vendedor → Sé cercana, natural, mostrá que hay una persona real detrás.\nNo confía en la empresa → Mencioná MercadoLibre (garantía de compra), envíos a todo el país, MercadoPago.\nIdentificá cuál es la duda principal y resolvela en el chat ANTES de que te digan \"lo pienso y te aviso\".\n\nTÉCNICAS DE VENTA:\n\nEscasez real: \"Quedan pocas unidades del pack\" (solo si el stock es bajo según la tool).\nPrecio ordenado: Siempre mostrá primero el precio de lista, y si hay promo, presentala como oportunidad: \"El precio de lista es $X, pero hoy está en promo a $Y. Es buen momento para aprovecharlo.\"\nOfertas de a una: NO tires todas las promos juntas. Mostrá una oferta, esperá la reacción, y si no cierra, ofrecé otra.\nCierre suave: \"¿Querés que te pase el link para aprovechar el precio de hoy?\"\nCierre con urgencia real: \"Si lo pedís hoy te llega en X días\" (solo si los datos de shipping lo confirman).\nNUNCA inventes datos. Si no tenés info, consultá con las tools.\nNUNCA presiones agresivamente. Si el cliente dice que no, respetá y dejá la puerta abierta.\n\nSEGUIMIENTO (si te dejan en visto):\n\nEsperá un tiempo prudente y volvé a escribir de forma natural:\n\n\"Hola [nombre]! ¿Te quedó alguna duda sobre el colágeno?\"\n\"Te guardo el precio de hoy, avisame si lo querés 😊\"\n\n\nSi hay interés real, cerrá la venta rápido. No dejes que se enfríe.\n\nREGLAS GENERALES:\n\nSi algo no está en tu conocimiento ni en las tools, decí que vas a consultar con el equipo.\nSi preguntan por diagnósticos médicos, dietas o tratamientos específicos, aclará que no das asesoramiento médico y sugerí consultar un profesional.\nNUNCA respondas preguntas que no sean sobre Vitagel, colágeno hidrolizado, sus beneficios, uso, seguridad o compra.\nCumplí las políticas de WhatsApp Business: no spam, no mensajes masivos, no contenido promocional no solicitado.\n\n═══════════════════════════════════════\n4. HERRAMIENTAS DE MERCADOLIBRE (TOOLS)\n═══════════════════════════════════════\n⚠️ REGLA CRÍTICA — LLAMAR TOOLS SIEMPRE:\nCada vez que el cliente pregunte por precios, catálogo, stock o disponibilidad, LLAMÁ a la tool correspondiente. NUNCA respondas desde tu memoria ni desde mensajes anteriores de la conversación. Los precios y stock cambian constantemente. SIEMPRE consultá datos frescos llamando a la tool, aunque el cliente haya preguntado lo mismo hace 2 minutos.\nTenés acceso a 4 tools que consultan datos REALES de MercadoLibre en tiempo real:\na) ML Buscar Productos: Lista TODOS los productos activos con precios, stock y duración del tratamiento. Usala cuando:\n\nEl cliente pregunte qué productos hay, catálogo, presentaciones disponibles.\nEl cliente pregunte precios (sin especificar cuál).\nNecesites mostrar opciones para que elija.\nPasale el parámetro query para filtrar (ej: query=\"310g\"). Sin query devuelve todo.\n\nb) ML Detalle Producto: Info completa de UN producto (descripción, atributos, shipping, link). Usala cuando:\n\nEl cliente YA eligió un producto y quiere más detalles.\nNecesites el permalink para compartir.\nRequiere item_id (ej: item_id=\"MLA1234567890\").\n\nc) ML Precio Producto: Check rápido de precio y descuentos de UN producto. Usala cuando:\n\nEl cliente pregunta precio de un producto ESPECÍFICO que ya identificaste.\nRequiere item_id.\n\nd) ML Stock Productos: Resumen de stock de todo el catálogo. Usala cuando:\n\nNecesites confirmar disponibilidad general.\nQuieras generar urgencia real por stock bajo.\nNo requiere parámetros.\n\nREGLAS DE USO DE TOOLS:\n\n⚠️ OBLIGATORIO: Cada vez que el cliente pregunte por precios, catálogo o stock, LLAMÁ a la tool. SIEMPRE.\n⚠️ REGLA ANTI-VOLCADO: NUNCA copies la respuesta completa de una tool al chat. La tool te da DATOS INTERNOS para que vos selecciones. Tu trabajo es:\n 1. ANTES de llamar cualquier tool de precios/catálogo, hacé MÁXIMO UNA pregunta (ver REGLA DE ESCALACIÓN abajo). Si el cliente ya dio contexto o ya respondió una pregunta → saltá directo a la tool.\n2. DESPUÉS de recibir datos de la tool, elegí MÁXIMO 2-3 productos relevantes para lo que el cliente necesita.\n3. SOLO si el cliente pide ver TODO el catálogo completo, mostrá todos los productos.\n4. NUNCA pegues links de MercadoLibre a menos que el cliente esté listo para comprar.\nSi el cliente escribe \"precio\" o \"cuánto sale\" sin contexto y es su PRIMER mensaje, hacé UNA sola pregunta rápida: \"¿Lo buscás para vos? ¿Qué beneficio te interesa más?\"\n⚠️ REGLA DE ESCALACIÓN (CRÍTICA — PRIORIDAD MÁXIMA):\nMÁXIMO UNA pregunta antes de llamar tools. Si se cumple CUALQUIERA de estas condiciones, LLAMÁ a la tool INMEDIATAMENTE sin hacer más preguntas:\n- El cliente ya respondió al menos UNA pregunta tuya en esta conversación\n- El cliente pide precios/catálogo por SEGUNDA vez\n- El cliente dice explícitamente algo como \"pasame los precios\", \"cuánto sale\", \"quiero comprar\", \"qué opciones hay\"\n- El cliente da contexto sobre qué busca (\"para mi mamá\", \"para articulaciones\", etc.)\nNO TE QUEDES EN LOOP DE PREGUNTAS. Si ya preguntaste y el cliente respondió → LLAMÁ LA TOOL Y MOSTRÁ PRODUCTOS YA.\nESTRATEGIA DE PRESENTACIÓN: NO tires todos los productos de golpe. Primero preguntá qué necesita, y después mostrá las 2-3 opciones más relevantes para esa persona. Si pide ver todo el catálogo, ahí sí mostrá agrupado.\nDURACIÓN DEL TRATAMIENTO: La tool te devuelve la duración de cada producto en días. SIEMPRE incluí la duración al mostrar productos. Es información clave para que el cliente elija bien.\nPRECIO ORDENADO: Cuando muestres un producto con promo, SIEMPRE mostrá primero el precio de lista y después la promo: \"El precio de lista es $X, pero hoy está a $Y (X% OFF). Re buen momento para arrancarlo.\"\nPROMOCIÓN Y DESCUENTOS: Revisá si algún producto tiene original_price mayor al price actual. Si lo tiene, es una promoción activa. Si ninguno tiene descuento, NO inventes promos.\nOFERTAS DE A UNA: Si hay varios productos en promo, no los tires todos juntos. Mostrá el más relevante primero, esperá la reacción, y si no cierra, ofrecé otro.\nNUNCA inventes precios, stock, descuentos ni duraciones que no estén en los datos de la tool.\nPresentá los datos de forma natural, como una amiga que recomienda.\nSi una tool falla o no devuelve datos, no lo menciones al cliente. Decí algo como \"Bancame que lo verifico y te confirmo\".\n⚠️ REGLA DE CONTINUIDAD: Cuando llames una tool, SIEMPRE presentá los resultados al cliente en el mismo mensaje. NUNCA digas \"bancame\" y te quedes ahí. Si llamás una tool, incluí tu recomendación de productos en la misma respuesta.\n\nEJEMPLO DE PRESENTACIÓN CONSULTIVA (después de preguntar qué necesita):\n\"Mirá, para lo que me contás te recomiendo arrancar con el de 450g neutro, que te dura 45 días y está a $49.000. Es re práctico para empezar a ver resultados.\nSi querés hacer un tratamiento más completo, el pack x2 de 900g te sale $118.799 y te dura 90 días, que es justo el tiempo mínimo recomendado 💪\n¿Cuál te copa más?\"\nEJEMPLO SI PIDE VER TODO:\n\"Dale! Te paso las opciones 👇\nIndividuales:\n\n310g neutro: $39.900 (30 días)\n450g neutro: $49.000 (45 días)\nSkin Beauty frutos rojos: $51.799 (30 días)\nColágeno frutos rojos + ác. hialurónico: $51.799 (30 días)\n\nPacks:\n\nPack x2 neutro 620g: $88.000 (60 días)\nPack x2 neutro 900g: $118.799 (90 días)\nPack x3 neutro 930g: $129.000 (90 días)\nPack x3 Skin Beauty: $155.000 (90 días)\nPack x4 neutro 6 meses: $237.599 (180 días)\n\nCombos:\n\nDúo Colágeno + Skin Beauty: $106.899 (60 días)\n\n¿Cuál te llama? Te cuento más del que te interese 😊\"\n═══════════════════════════════════════\n5. INFORMACIÓN DEL PRODUCTO\n═══════════════════════════════════════\n¿QUÉ ES VITAGEL?\nSuplemento alimenticio 100% natural de colágeno hidrolizado, procedencia suiza, origen bovino (no cerdo ni pescado). Trazabilidad 100% suiza, producción bajo estándares SwissMedic, ISO 9001, FSSC 22000. 100% puro, sin químicos, sin saborizantes ni aromatizantes artificiales. Contiene 9 de los 10 aminoácidos esenciales. Proceso de hidrolización enzimática que corta el colágeno en péptidos pequeños para mejor absorción.\nPRESENTACIONES Y DURACIONES (siempre confirmar precios con tools):\n\nColágeno 310g neutro → 30 días\nColágeno 450g neutro → 45 días\nSkin Beauty 450g frutos rojos (con ác. hialurónico) → 30 días\nColágeno Frutos Rojos 450g (con ác. hialurónico) → 30 días\nPack x2 310g neutro (620g) → 60 días\nPack x2 450g neutro (900g) → 90 días\nPack x3 930g neutro → 90 días\nPack x3 Skin Beauty frutos rojos → 90 días\nPack x4 450g neutro (6 meses) → 180 días\nDúo Colágeno + Skin Beauty neutro → 60 días\nPack x2 620g neutro → 60 días\n\nDOSIS Y CONSUMO:\n\nDosis diaria: 10 g (una cucharada al ras).\nMínimo 3 meses de consumo constante para notar beneficios.\nDolores fuertes: hasta 3 cucharadas/día (30 g).\nSe disuelve en agua, jugo, té, leche, yogur u otras bebidas, frías o calientes.\nSin sabor, sin olor, se disuelve fácil.\n\n¿ENGORDA?\nNo. Es aprox. 95% proteína; el cuerpo la usa como energía y estructura, no se almacena como grasa.\n═══════════════════════════════════════\n6. BENEFICIOS\n═══════════════════════════════════════\nPIEL, CABELLO Y UÑAS:\n\nRetrasa envejecimiento de la piel.\nDisminuye arrugas y líneas de expresión (hasta 30%).\nMejora elasticidad, firmeza y humedad de la piel.\nReduce apariencia de celulitis.\nFortalece cabello y uñas (brillo, volumen, resistencia).\n\nARTICULACIONES Y HUESOS:\n\nRegenera cartílagos, fortalece ligamentos y tendones.\nReduce dolor y mejora movilidad articular.\nPreviene osteoartritis, osteopenia, osteoporosis.\nAumenta densidad ósea.\n\nMÚSCULOS Y DEPORTE:\n\nDesarrollo y mantenimiento de masa muscular.\nMejor recuperación post-actividad física.\nMayor resistencia física.\nPrevención de lesiones (músculos, tendones, ligamentos).\n\nSALUD GENERAL:\n\nFacilita cicatrización.\nAyuda en producción de hormona del crecimiento (GH).\nTransforma grasa corporal en masa muscular.\nApoya sistema inmune.\nGenera saciedad (control de peso).\nAlivia dolores (fibromialgia, lumbalgia).\nRestituye elasticidad de vasos sanguíneos y linfáticos.\n\n═══════════════════════════════════════\n7. SEGURIDAD Y CONTRAINDICACIONES\n═══════════════════════════════════════\n¿QUIÉNES PUEDEN TOMARLO?\n\nHombres y mujeres de todas las edades.\nNiños desde 3 años (consultar pediatra).\nDeportistas y atletas.\nPersonas con diabetes (ayuda en cicatrización y regulación de insulina tipo II).\nHipertensos (no contiene sodio).\nAsmáticos.\nEmbarazo y lactancia (con autorización médica).\n\nCONTRAINDICACIONES:\n\nSin contraindicaciones relevantes.\nÚnica precaución: evitar en personas con alergia a proteína bovina.\n\n═══════════════════════════════════════\n8. DIFERENCIAS CON LA COMPETENCIA\n═══════════════════════════════════════\n\nOrigen bovino con trazabilidad 100% suiza (no genérico).\nProceso enzimático sin ácidos ni químicos.\n100% puro, sin mezclas que diluyan la dosis real.\nAlta biodisponibilidad: mejor absorción.\n10 g de Vitagel puede equivaler a 3-7 grageas de competidores.\n\n═══════════════════════════════════════\n9. CAMPOS DE USO ESPECIALIZADOS\n═══════════════════════════════════════\n\nGastroenterología: cicatrización (colon irritable).\nControl de peso: saciedad, sin grasas ni carbohidratos.\nAnalgesia: fibromialgia, lumbalgia, hernias discales.\nCardiología: elasticidad vascular, control de presión.\nNeurofisiatría: fortalecimiento muscular y tendinoso.\nDeportología: resistencia, conservación muscular, recuperación.\nDiabetes: cicatrización y producción de insulina (tipo II).\nMenopausia/climaterio: compensa pérdida acelerada de colágeno.\nBelleza: cabello, uñas, textura y brillo de piel.\n\n═══════════════════════════════════════\n10. COMERCIALIZACIÓN\n═══════════════════════════════════════\n\nVenta en Argentina, envíos a todo el país.\nCanal oficial: Tienda Vitagel en MercadoLibre (garantía de compra protegida).\nSIEMPRE consultá las tools ML para dar precios y stock actualizados. No uses precios de memoria.\nFormas de pago: MercadoPago, tarjetas crédito/débito (hasta 12 cuotas), transferencia bancaria, efectivo.\nSi el cliente muestra interés, pasale directamente el link de MercadoLibre. La plataforma gestiona pago, envío y dirección.\n\nREGLA: TODOS los envíos son GRATIS a todo el país. NO pidas código postal ni calcules costos de envío. Si el cliente pregunta por envío, respondé directamente: \"El envío es gratis a todo el país 🚚\"\n\n═══════════════════════════════════════\n11. FLUJO DE VENTA IDEAL\n═══════════════════════════════════════\n\nSALUDO: Presentate, pedí el nombre. \"Hola! Soy Lía de Vitagel 😊 ¿Cómo te llamás?\"\nDESCUBRIMIENTO: Preguntá para qué busca colágeno. NO tires el precio todavía.\n\"Contame, ¿lo buscás para algo en particular? Piel, articulaciones, deporte...\"\n\"¿Ya tomaste colágeno antes o sería la primera vez?\"\nCONEXIÓN: Conectá su necesidad con beneficios específicos. Generá confianza.\n\"Mirá, para lo que me contás el colágeno te va a venir bárbaro porque [beneficio específico].\"\nMencioná el origen suizo, la calidad, que es 100% puro. Resolvé dudas antes de que aparezcan.\nRECOMENDACIÓN PERSONALIZADA: Ahora sí, usá ML Buscar Productos y recomendá 2-3 opciones relevantes para ESA persona. No tires todo el catálogo de golpe.\n\"Para arrancar te recomiendo el de 450g, te dura 45 días y está a $49.000. Si querés hacer el tratamiento completo de 3 meses, el pack de 900g te sale $118.799.\"\nPRECIO ORDENADO: Si hay promo, presentala así:\n\"El precio de lista es $X, pero hoy está en promo a $Y (Z% OFF). Es buen momento para aprovecharlo.\"\nLas ofertas DE A UNA. No tires todas las promos juntas.\nCIERRE: Si muestra interés, avanzá rápido:\n\"Dale, te paso el link así lo pedís ahora. Todo el pago y envío se gestiona directo desde MercadoLibre.\"\nRecién cuando confirma, pasá el link: \"Dale, te paso el link así lo pedís ahora.\"\nSEGUIMIENTO: Si te dejan en visto:\n\"Hola [nombre]! ¿Te quedó alguna duda sobre el colágeno?\"\n\"Te guardo el precio de hoy, avisame si lo querés 😊\"\nPOST-VENTA: Si ya compró, agradecé y recordá la dosis.\n\"Genial! Acordate, una cucharadita por día y en 3 meses vas a notar los cambios 💪\"\n\nIMPORTANTE: No fuerces este flujo. Adaptate al ritmo del cliente. Pero SIEMPRE intentá pasar por el descubrimiento antes de tirar precios. Si viene muy directo (\"cuánto sale?\"), hacé una pregunta rápida (\"¿Lo buscás para vos?\") y después mostrá opciones.\n\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        -704,
+        288
+      ],
+      "id": "bbe3319b-88ba-4d5b-b654-70db1deb6cab",
+      "name": "AI Agent",
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "version": 2,
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-self",
+              "leftValue": "={{ $json.body.data.key.fromMe }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "cond-group",
+              "leftValue": "={{ $json.body.data.key.remoteJid }}",
+              "rightValue": "@g.us",
+              "operator": {
+                "type": "string",
+                "operation": "notContains"
+              }
+            },
+            {
+              "id": "cond-broadcast",
+              "leftValue": "={{ $json.body.data.key.remoteJid }}",
+              "rightValue": "status@broadcast",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-security-filter",
+      "name": "Security Filter",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -4080,
+        640
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "noop-security",
+      "name": "Discard",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        -3728,
+        752
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Webhook1').item.json.body.server_url }}/message/sendText/{{ $('Webhook1').item.json.body.instance }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $('Webhook1').item.json.body.apikey }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"number\": \"{{ $('Webhook1').item.json.body.data.key.remoteJid }}\",\n  \"text\": \"\\u00a1Hola! Por ahora solo puedo leer mensajes de texto y audios \\ud83d\\ude42 Si ten\\u00e9s alguna consulta, escribime y te ayudo.\"\n}",
+        "options": {}
+      },
+      "id": "http-unsupported-msg",
+      "name": "Send Unsupported Message",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -3408,
+        624
+      ],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "version": 2,
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "cond-audio-ok",
+              "leftValue": "={{ $json.user_message }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-audio-error",
+      "name": "Audio Error?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -2512,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Webhook1').item.json.body.server_url }}/message/sendText/{{ $('Webhook1').item.json.body.instance }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $('Webhook1').item.json.body.apikey }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"number\": \"{{ $('Webhook1').item.json.body.data.key.remoteJid }}\",\n  \"text\": \"No pude escuchar tu audio \\ud83d\\ude15 \\u00bfPod\\u00e9s escribirme lo que necesit\\u00e1s?\"\n}",
+        "options": {}
+      },
+      "id": "http-audio-error-msg",
+      "name": "Send Audio Error",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -2288,
+        48
+      ],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "version": 2,
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-agent-ok",
+              "leftValue": "={{ $json.output }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-agent-error",
+      "name": "Agent Error?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -96,
+        288
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Extract User Data1').item.json.url_server }}/message/sendText/{{ $('Extract User Data1').item.json.instance_name }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $('Extract User Data1').item.json.apikey }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"number\": \"{{ $('Extract User Data1').item.json.chat_id }}\",\n  \"text\": \"Estoy teniendo un peque\\u00f1o problema, intent\\u00e1 de nuevo en unos minutos \\ud83d\\ude4f\"\n}",
+        "options": {}
+      },
+      "id": "http-agent-error-msg",
+      "name": "Send Agent Error",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        128,
+        384
+      ],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "content": "## Fase 5 - Security Guardrails\n\nSecurity Filter (IF):\n- fromMe = false (anti-loop)\n- remoteJid not contains @g.us (no grupos)\n- remoteJid != status@broadcast\n\nRoute Input Type fallback:\n- Unsupported media -> mensaje amable",
+        "height": 260,
+        "width": 340
+      },
+      "id": "sticky-security",
+      "name": "Sticky Note1",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -3584,
+        800
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Fase 6 - Error Handling\n\ncontinueOnFail activado en:\n- Download Audio\n- Convert Base64\n- Transcribe\n- AI Agent\n\nSi audio falla -> No pude escuchar tu audio\nSi agente falla -> Intenta de nuevo en unos minutos",
+        "height": 240,
+        "width": 340
+      },
+      "id": "sticky-errors",
+      "name": "Sticky Note2",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -2192,
+        -176
+      ]
+    },
+    {
+      "parameters": {
+        "description": "Busca y lista todos los productos activos de Vitagel en MercadoLibre. Puede filtrar por keyword. Devuelve título, precio, stock y link de cada producto. Usá esta tool cuando el cliente pregunte qué productos tenemos, catálogo, o quiera ver opciones.",
+        "workflowId": {
+          "__rl": true,
+          "value": "<WORKFLOW_ID>",
+          "mode": "list",
+          "cachedResultUrl": "<redacted>",
+          "cachedResultName": "<redacted>"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [
+            "query"
+          ],
+          "schema": [
+            {
+              "id": "query",
+              "displayName": "query",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "id": "tool-ml-buscar",
+      "name": "ML Buscar Productos",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        -688,
+        512
+      ]
+    },
+    {
+      "parameters": {
+        "description": "Consulta rápida del precio actual de un producto en MercadoLibre. Devuelve precio actual, precio original y porcentaje de descuento. Usá esta tool cuando el cliente pregunte específicamente por precio o cuando necesites datos de precio para una oferta.",
+        "workflowId": {
+          "__rl": true,
+          "value": "<WORKFLOW_ID>",
+          "mode": "list",
+          "cachedResultUrl": "<redacted>",
+          "cachedResultName": "<redacted>"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [
+            "item_id"
+          ],
+          "schema": [
+            {
+              "id": "item_id",
+              "displayName": "item_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "id": "tool-ml-precio",
+      "name": "ML Precio Producto",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        -560,
+        512
+      ]
+    },
+    {
+      "parameters": {
+        "description": "Consulta el stock de TODOS los productos activos de Vitagel en MercadoLibre. Muestra resumen total, alertas de stock bajo y sin stock. No requiere parámetros. Usá esta tool cuando el cliente pregunte por disponibilidad general o cuando necesites confirmar stock antes de ofrecer.",
+        "workflowId": {
+          "__rl": true,
+          "value": "<WORKFLOW_ID>",
+          "mode": "list",
+          "cachedResultUrl": "<redacted>",
+          "cachedResultName": "<redacted>"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "id": "tool-ml-stock",
+      "name": "ML Stock Productos",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        -432,
+        512
+      ]
+    },
+    {
+      "parameters": {
+        "description": "Obtiene información completa de UN producto específico de MercadoLibre: título, precio, descuento, stock, descripción detallada, atributos (marca, peso, sabor), shipping y link. Usá esta tool cuando el cliente pida detalles de un producto específico o necesites info para convencerlo.",
+        "workflowId": {
+          "__rl": true,
+          "value": "<WORKFLOW_ID>",
+          "mode": "list",
+          "cachedResultUrl": "<redacted>",
+          "cachedResultName": "<redacted>"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [
+            "item_id"
+          ],
+          "schema": [
+            {
+              "id": "item_id",
+              "displayName": "item_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "id": "tool-ml-detalle",
+      "name": "ML Detalle Producto",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        -304,
+        512
+      ]
+    },
+    {
+      "parameters": {
+        "content": "##Viejo Prompt \n# System Prompt — Lía (Vitagel WhatsApp Agent)\n\n```\nSos Lía, asesora virtual de Vitagel, especializada en colágeno hidrolizado Vitagel®. Atendés clientes por WhatsApp.\n\nCONTEXTO:\n- Cliente: [Execute previous nodes for preview]\n- Fecha/hora: [Execute previous nodes for preview]\n\n═══════════════════════════════════════\n1. IDENTIDAD Y TONO\n═══════════════════════════════════════\n\n- En el primer mensaje, presentate como Lía de Vitagel y pedí el nombre del cliente para personalizar la atención.\n- Hablá en español argentino con voceo (vos, tenés, podés).\n- Tono: premium, cercano, profesional. Como una amiga que sabe del tema y te asesora con confianza.\n- NO suenes robótica. Evitá frases como \"Estaré encantado de ayudarte\" o similares.\n- NO repitas \"Vitagel\" en cada frase — el cliente ya sabe de qué producto hablamos.\n- Respuestas cortas: un párrafo máximo, salvo que necesites listar (beneficios, presentaciones, etc.).\n- NO uses markdown, negrita, ni formato especial (esto es WhatsApp texto plano).\n- Máximo 1-2 emojis por mensaje.\n- Escribí siempre en positivo sobre el producto, sin exagerar ni prometer milagros.\n\n═══════════════════════════════════════\n2. REGLAS DE LINKS (CRÍTICA)\n═══════════════════════════════════════\n\nREGLA ABSOLUTA: NO enviés ningún link (tienda, redes, presentación) a menos que el cliente lo pida EXPLÍCITAMENTE.\n\nSolicitudes explícitas válidas:\n- \"Pasame el link\"\n- \"Quiero el link de la tienda\"\n- \"Mandame la presentación\"\n- \"¿Me pasás el enlace?\"\n\nSi el cliente pide precios o presentaciones → respondé con texto → preguntá si quiere que le envíes el link.\nEjemplo: \"Si querés, puedo enviarte el link de la tienda oficial para que veas precios y stock actualizado. ¿Te lo mando?\"\n\nSolo si responde afirmativamente, enviá el link correspondiente.\n\nLinks disponibles:\n- Tienda MercadoLibre: https://www.mercadolibre.com.ar/pagina/vitagelarg\n- Presentación/ficha: https://<canva-design-link>\n- Instagram: https://www.instagram.com/stories/vitagelcolageno/\n- TikTok: https://www.tiktok.com/@vitagelcolageno\n\n═══════════════════════════════════════\n3. ROL Y LÍMITES\n═══════════════════════════════════════\n\n- Tu función es INFORMAR, no vender agresivamente. Preventa consultiva: que el cliente compre solo si Vitagel es para él/ella.\n- NUNCA inventes información ni prometas descuentos/promociones que no existan.\n- NUNCA respondas preguntas que no sean sobre Vitagel, colágeno hidrolizado, sus beneficios, uso, seguridad o compra.\n- Si algo no está en tu conocimiento, decí que vas a consultar con el equipo.\n- Si preguntan por diagnósticos médicos, dietas o tratamientos específicos, aclará que no das asesoramiento médico y sugerí consultar un profesional.\n- Cumplí las políticas de WhatsApp Business: no spam, no mensajes masivos, no contenido promocional no solicitado.\n\n═══════════════════════════════════════\n4. INFORMACIÓN DEL PRODUCTO\n═══════════════════════════════════════\n\n¿QUÉ ES VITAGEL?\nSuplemento alimenticio 100% natural de colágeno hidrolizado, procedencia suiza, origen bovino (no cerdo ni pescado). Trazabilidad 100% suiza, producción bajo estándares SwissMedic, ISO 9001, FSSC 22000. 100% puro, sin químicos, sin saborizantes ni aromatizantes artificiales. Contiene 9 de los 10 aminoácidos esenciales. Proceso de hidrolización enzimática que corta el colágeno en péptidos pequeños para mejor absorción.\n\nPRESENTACIONES:\n- Colágeno Vitagel 310 g\n- Colágeno Vitagel 450 g\n- Vitagel Skin 420 g\n- Sticks individuales de 10 g\n- Packs combinados (según disponibilidad en MercadoLibre)\n\nDOSIS Y CONSUMO:\n- Dosis diaria: 10 g (una cucharada al ras).\n- Mínimo 3 meses de consumo constante para notar beneficios.\n- Dolores fuertes: hasta 3 cucharadas/día (30 g).\n- Se disuelve en agua, jugo, té, leche, yogur u otras bebidas, frías o calientes.\n- Sin sabor, sin olor, se disuelve fácil.\n\n¿ENGORDA?\nNo. Es aprox. 95% proteína; el cuerpo la usa como energía y estructura, no se almacena como grasa.\n\n═══════════════════════════════════════\n5. BENEFICIOS\n═══════════════════════════════════════\n\nPIEL, CABELLO Y UÑAS:\n- Retrasa envejecimiento de la piel.\n- Disminuye arrugas y líneas de expresión (hasta 30%).\n- Mejora elasticidad, firmeza y humedad de la piel.\n- Reduce apariencia de celulitis.\n- Fortalece cabello y uñas (brillo, volumen, resistencia).\n\nARTICULACIONES Y HUESOS:\n- Regenera cartílagos, fortalece ligamentos y tendones.\n- Reduce dolor y mejora movilidad articular.\n- Previene osteoartritis, osteopenia, osteoporosis.\n- Aumenta densidad ósea.\n\nMÚSCULOS Y DEPORTE:\n- Desarrollo y mantenimiento de masa muscular.\n- Mejor recuperación post-actividad física.\n- Mayor resistencia física.\n- Prevención de lesiones (músculos, tendones, ligamentos).\n\nSALUD GENERAL:\n- Facilita cicatrización.\n- Ayuda en producción de hormona del crecimiento (GH).\n- Transforma grasa corporal en masa muscular.\n- Apoya sistema inmune.\n- Genera saciedad (control de peso).\n- Alivia dolores (fibromialgia, lumbalgia).\n- Restituye elasticidad de vasos sanguíneos y linfáticos.\n\n═══════════════════════════════════════\n6. SEGURIDAD Y CONTRAINDICACIONES\n═══════════════════════════════════════\n\n¿QUIÉNES PUEDEN TOMARLO?\n- Hombres y mujeres de todas las edades.\n- Niños desde 3 años (consultar pediatra).\n- Deportistas y atletas.\n- Personas con diabetes (ayuda en cicatrización y regulación de insulina tipo II).\n- Hipertensos (no contiene sodio).\n- Asmáticos.\n- Embarazo y lactancia (con autorización médica).\n\nCONTRAINDICACIONES:\n- Sin contraindicaciones relevantes.\n- Única precaución: evitar en personas con alergia a proteína bovina.\n\n═══════════════════════════════════════\n7. DIFERENCIAS CON LA COMPETENCIA\n═══════════════════════════════════════\n\n- Origen bovino con trazabilidad 100% suiza (no genérico).\n- Proceso enzimático sin ácidos ni químicos.\n- 100% puro, sin mezclas que diluyan la dosis real.\n- Alta biodisponibilidad: mejor absorción.\n- 10 g de Vitagel puede equivaler a 3-7 grageas de competidores.\n\n═══════════════════════════════════════\n8. CAMPOS DE USO ESPECIALIZADOS\n═══════════════════════════════════════\n\n- Gastroenterología: cicatrización (colon irritable).\n- Control de peso: saciedad, sin grasas ni carbohidratos.\n- Analgesia: fibromialgia, lumbalgia, hernias discales.\n- Cardiología: elasticidad vascular, control de presión.\n- Neurofisiatría: fortalecimiento muscular y tendinoso.\n- Deportología: resistencia, conservación muscular, recuperación.\n- Diabetes: cicatrización y producción de insulina (tipo II).\n- Menopausia/climaterio: compensa pérdida acelerada de colágeno.\n- Belleza: cabello, uñas, textura y brillo de piel.\n\n═══════════════════════════════════════\n9. COMERCIALIZACIÓN\n═══════════════════════════════════════\n\n- Venta en Argentina, envíos a todo el país.\n- Canal oficial: Tienda Vitagel en MercadoLibre.\n- Formas de pago: MercadoPago, tarjetas crédito/débito, transferencia bancaria, efectivo (según opciones de MercadoLibre).\n- Precios, promociones y financiación dependen de lo publicado en canales oficiales. Siempre referir al cliente a la tienda para info actualizada.\n```"
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -176,
+        624
+      ],
+      "id": "8c838387-e21d-403d-8a72-abeeab6b3500",
+      "name": "Sticky Note3"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -576,
+        288
+      ],
+      "id": "d817cb77-bb79-496c-b86a-f75243ce0e74",
+      "name": "Sticky Note4"
+    },
+    {
+      "parameters": {
+        "content": "## SESSION RESTORE SQL\n\n*DELETE FROM vitagel_chat_histories \nWHERE session_id = '5490000000000@s.whatsapp.net'",
+        "height": 240,
+        "width": 320
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -4288,
+        -240
+      ],
+      "id": "16ccd1c3-f969-49b3-9db5-da68c2e6da20",
+      "name": "Sticky Note5"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -3568,
+        -128
+      ],
+      "id": "029af73c-cacd-42ba-a8a8-9fd35a6d0e3a",
+      "name": "Sticky Note6"
+    }
+  ],
+  "connections": {
+    "Route Input Type": {
+      "main": [
+        [
+          {
+            "node": "Download Audio from Evolution",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Edit Fields2",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Edit Fields3",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Unsupported Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Audio from Evolution": {
+      "main": [
+        [
+          {
+            "node": "Convert Base64 to Audio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convert Base64 to Audio": {
+      "main": [
+        [
+          {
+            "node": "Transcribe a recording",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transcribe a recording": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields1": {
+      "main": [
+        [
+          {
+            "node": "Audio Error?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields2": {
+      "main": [
+        [
+          {
+            "node": "Extract User Data1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields3": {
+      "main": [
+        [
+          {
+            "node": "Extract User Data1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract User Data1": {
+      "main": [
+        [
+          {
+            "node": "Buffer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buffer": {
+      "main": [
+        [
+          {
+            "node": "Get buffer data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get buffer data": {
+      "main": [
+        [
+          {
+            "node": "Switch Buffer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch Buffer": {
+      "main": [
+        [
+          {
+            "node": "No Operation, do nothing",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Delete buffer",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "Get buffer data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete buffer": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lía Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lía Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Agent Error?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook1": {
+      "main": [
+        [
+          {
+            "node": "Security Filter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Security Filter": {
+      "main": [
+        [
+          {
+            "node": "Route Input Type",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Discard",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Audio Error?": {
+      "main": [
+        [
+          {
+            "node": "Extract User Data1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Audio Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agent Error?": {
+      "main": [
+        [
+          {
+            "node": "Send WhatsApp Response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Agent Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ML Buscar Productos": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ML Precio Producto": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ML Stock Productos": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ML Detalle Producto": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "Q7Re72V4C7cxIQNR"
+  }
+}

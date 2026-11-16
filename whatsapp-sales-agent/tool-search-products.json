@@ -1,0 +1,240 @@
+{
+  "name": "ML Tool - Buscar Productos",
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "jsonExample",
+        "jsonExample": "{\n  \"query\": \"colágeno\"\n}"
+      },
+      "id": "t1-trigger",
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        208,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT access_token FROM ml_tokens WHERE app_id = 'vitagel' LIMIT 1",
+        "options": {}
+      },
+      "id": "t1-get-token",
+      "name": "Get ML Token",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        432,
+        304
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "url": "https://api.mercadolibre.com/users/<SELLER_ID>/items/search",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "status",
+              "value": "active"
+            },
+            {
+              "name": "limit",
+              "value": "50"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Get ML Token').item.json.access_token }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "t1-search-items",
+      "name": "Search Seller Items",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        640,
+        304
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "url": "=https://api.mercadolibre.com/items?ids={{ $json.results.join(',') }}&attributes=id,title,price,original_price,sale_price,base_price,currency_id,available_quantity,permalink,thumbnail,status",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Get ML Token').item.json.access_token }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "t1-get-details",
+      "name": "Get Items Details",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        864,
+        304
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const allItems = $input.all().map(i => i.json);\n\nconst items = allItems\n  .filter(i => i.code === 200 && i.body)\n  .map(i => ({\n    json: {\n      item_id: i.body.id,\n      title: i.body.title,\n      price: i.body.price,\n      original_price: i.body.original_price,\n      sale_price: i.body.sale_price,\n      base_price: i.body.base_price,\n      currency_id: i.body.currency_id,\n      available_quantity: i.body.available_quantity,\n      permalink: i.body.permalink,\n      thumbnail: i.body.thumbnail,\n      status: i.body.status\n    }\n  }));\n\nreturn items;"
+      },
+      "id": "t1-prepare",
+      "name": "Prepare Items",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1088,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://api.mercadolibre.com/seller-promotions/items/{{ $json.item_id }}?app_version=v2",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Get ML Token').item.json.access_token }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "t1-get-promo",
+      "name": "Get Item Promo",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1312,
+        304
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const originalItems = $('Prepare Items').all().map(i => i.json);\nconst promoResponses = $input.all().map(i => i.json);\nconst query = $('Execute Workflow Trigger').first().json.query || '';\n\nconst excludeIds = ['MLA1427405068', 'MLA2032050504'];\n\nconst duraciones = {\n  'MLA1675597774': 180,\n  'MLA1436553470': 45,\n  'MLA2348847440': 90,\n  'MLA2470519598': 30,\n  'MLA1101767933': 30,\n  'MLA1532172427': 30,\n  'MLA1113722322': 60,\n  'MLA1327394570': 90,\n  'MLA1436505318': 30,\n  'MLA896594083': 90,\n  'MLA1532695445': 60,\n  'MLA1436492592': 90,\n  'MLA2367830382': 60,\n  'MLA1327110821': 45,\n};\n\n// Build price lookup from original items for DEAL matching\nconst itemPriceLookup = {};\noriginalItems.forEach(item => {\n  const price = item.price || item.base_price;\n  if (price) {\n    if (!itemPriceLookup[price]) itemPriceLookup[price] = [];\n    itemPriceLookup[price].push(item.item_id);\n  }\n});\n\n// promoMap: itemId -> { promoPrice, originalPrice, status, priority }\nconst promoMap = {};\nconst statusPriority = { 'started': 3, 'active': 2, 'candidate': 1 };\n\npromoResponses.forEach(resp => {\n  if (!resp || resp.error || resp.message) return;\n\n  // Normalize: could be single promo, array, or { results: [...] }\n  let promos = [];\n  if (Array.isArray(resp)) {\n    promos = resp;\n  } else if (resp.results && Array.isArray(resp.results)) {\n    promos = resp.results;\n  } else if (resp.type || resp.status) {\n    promos = [resp];\n  }\n\n  promos.forEach(promo => {\n    if (!promo) return;\n\n    // Skip PRICE_DISCOUNT with price=0 (suggestions, not real promos)\n    if (promo.type === 'PRICE_DISCOUNT' && (!promo.new_price || promo.new_price === 0)) return;\n\n    const promoPrice = promo.new_price || promo.price;\n    if (!promoPrice || promoPrice <= 0) return;\n\n    const promoOriginal = promo.original_price || promo.old_price || null;\n    const promoStatus = promo.status || 'candidate';\n    const priority = statusPriority[promoStatus] || 0;\n\n    // METHOD 1: Extract MLA ID from ref_id (SMART/OFFER promos)\n    let matchedItemId = null;\n    if (promo.ref_id) {\n      const match = promo.ref_id.match(/(MLA\\d+)/);\n      if (match) matchedItemId = match[1];\n    }\n\n    // METHOD 2: Match by original_price (DEAL promos) - apply to ALL candidates with same price\n    if (!matchedItemId && promoOriginal) {\n      const candidates = itemPriceLookup[promoOriginal];\n      if (candidates && candidates.length >= 1) {\n        candidates.forEach(candidateId => {\n          const existing = promoMap[candidateId];\n          if (!existing || priority > existing.priority || (priority === existing.priority && promoPrice < existing.promoPrice)) {\n            promoMap[candidateId] = {\n              promoPrice,\n              originalPrice: promoOriginal,\n              status: promoStatus,\n              priority\n            };\n          }\n        });\n        return; // Already applied to all candidates\n      }\n    }\n\n    if (!matchedItemId) return; // Can't identify item, skip\n\n    // Keep best promo: higher status priority wins, then lower price\n    const existing = promoMap[matchedItemId];\n    if (!existing || priority > existing.priority || (priority === existing.priority && promoPrice < existing.promoPrice)) {\n      promoMap[matchedItemId] = {\n        promoPrice,\n        originalPrice: promoOriginal,\n        status: promoStatus,\n        priority\n      };\n    }\n  });\n});\n\n// Filter and format\nlet products = originalItems.filter(p => !excludeIds.includes(p.item_id));\n\nif (query) {\n  const q = query.toLowerCase();\n  products = products.filter(p => p.title && p.title.toLowerCase().includes(q));\n}\n\nif (products.length === 0) {\n  return [{ json: { result: 'No se encontraron productos' + (query ? ` con \"${query}\"` : '') + '.' } }];\n}\n\nlet result = `\\ud83d\\udce6 *${products.length} producto(s) encontrado(s)*`;\nif (query) result += ` con \"${query}\"`;\nresult += ':\\n\\n';\n\nproducts.forEach((p, i) => {\n  const precio = p.price ? `$${p.price.toLocaleString('es-AR')}` : 'Sin precio';\n  const dias = duraciones[p.item_id];\n  const duracion = dias ? `${dias} d\\u00edas` : 'Consultar';\n\n  let promoTag = '';\n  let precioLinea = precio;\n\n  // Priority 1: seller-promotions (promoMap)\n  const promo = promoMap[p.item_id];\n  if (promo && promo.promoPrice) {\n    const promoOriginal = promo.originalPrice || p.price;\n    if (promo.promoPrice < promoOriginal) {\n      const descuento = Math.round((1 - promo.promoPrice / promoOriginal) * 100);\n      precioLinea = `~$${promoOriginal.toLocaleString('es-AR')}~ \\u2192 *$${promo.promoPrice.toLocaleString('es-AR')}*`;\n      promoTag = ` \\ud83d\\udd25 ${descuento}% OFF`;\n    }\n  }\n  // Priority 2: sale_price from multiget\n  else if (p.sale_price && typeof p.sale_price === 'object' && p.sale_price.amount && p.sale_price.amount < p.price) {\n    const descuento = Math.round((1 - p.sale_price.amount / p.price) * 100);\n    precioLinea = `~$${p.price.toLocaleString('es-AR')}~ \\u2192 *$${p.sale_price.amount.toLocaleString('es-AR')}*`;\n    promoTag = ` \\ud83d\\udd25 ${descuento}% OFF`;\n  }\n  // Priority 3: original_price from multiget\n  else if (p.original_price && p.original_price > p.price) {\n    const descuento = Math.round((1 - p.price / p.original_price) * 100);\n    precioLinea = `~$${p.original_price.toLocaleString('es-AR')}~ \\u2192 *${precio}*`;\n    promoTag = ` \\ud83d\\udd25 ${descuento}% OFF`;\n  }\n  // Priority 4: base_price from multiget\n  else if (p.base_price && p.base_price > p.price) {\n    const descuento = Math.round((1 - p.price / p.base_price) * 100);\n    precioLinea = `~$${p.base_price.toLocaleString('es-AR')}~ \\u2192 *${precio}*`;\n    promoTag = ` \\ud83d\\udd25 ${descuento}% OFF`;\n  }\n\n  result += `${i + 1}. *${p.title}*${promoTag}\\n`;\n  result += `   \\ud83d\\udcb0 ${precioLinea}\\n`;\n  result += `   \\ud83d\\udcc5 Duraci\\u00f3n: ${duracion}\\n`;\n  result += `   \\ud83d\\udce6 Stock: ${p.available_quantity} unidades\\n`;\n  result += `   \\ud83d\\udd17 ${p.permalink}\\n\\n`;\n});\n\nreturn [{ json: { result } }];"
+      },
+      "id": "t1-format",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1536,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## ML Tool - Buscar Productos\n**Input**: query (opcional)\n**Output**: Lista de productos activos con precios reales (incluye promos)\n**Llamado por**: AI Agent Lía via toolWorkflow\n\n**Flujo**: Token → Search → Batch Details → Prepare Items → Get Promo (por item) → Format Response\n**Prioridad precios**: seller-promotions (ref_id match) > sale_price > original_price > base_price\n**Fix v2**: Eliminada dependencia de pairedItem. Usa ref_id regex + original_price matching."
+      },
+      "id": "t1-sticky",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        160,
+        128
+      ]
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get ML Token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get ML Token": {
+      "main": [
+        [
+          {
+            "node": "Search Seller Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search Seller Items": {
+      "main": [
+        [
+          {
+            "node": "Get Items Details",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Items Details": {
+      "main": [
+        [
+          {
+            "node": "Prepare Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Items": {
+      "main": [
+        [
+          {
+            "node": "Get Item Promo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Item Promo": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Argentina/Buenos_Aires",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "Q7Re72V4C7cxIQNR"
+  }
+}

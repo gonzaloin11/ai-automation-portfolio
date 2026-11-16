@@ -1,0 +1,1130 @@
+{
+  "name": "Workflow B - Telegram Bot Expense Recorder",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message",
+          "callback_query"
+        ]
+      },
+      "id": "telegram-trigger",
+      "name": "Telegram Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "rules": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.callback_query?.data }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "string",
+                      "operation": "exists"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputLabel": "Callback Query"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.message?.photo }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "string",
+                      "operation": "exists"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputLabel": "Image"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.message?.document?.mime_type }}",
+                    "rightValue": "application/pdf",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputLabel": "PDF"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.message?.voice }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "string",
+                      "operation": "exists"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputLabel": "Audio"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.message?.text }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "string",
+                      "operation": "exists"
+                    }
+                  },
+                  {
+                    "leftValue": "={{ $json.message?.text }}",
+                    "rightValue": "/start",
+                    "operator": {
+                      "type": "string",
+                      "operation": "notEquals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputLabel": "Text"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.message?.text }}",
+                    "rightValue": "/start",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputLabel": "Start Command"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "id": "message-router",
+      "name": "Route Message Type",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        220,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const callbackData = $input.first().json.callback_query?.data || '';\nconst chatId = $input.first().json.callback_query?.message?.chat?.id;\nconst callbackId = $input.first().json.callback_query?.id;\n\nlet action = '';\nlet transactionId = '';\nlet extraData = '';\n\nif (callbackData.startsWith('metodo:')) {\n  action = 'set_payment_method';\n  const parts = callbackData.replace('metodo:', '').split('|');\n  extraData = parts[0];\n  transactionId = parts[1] || '';\n} else if (callbackData.startsWith('visto:')) {\n  action = 'mark_viewed';\n  transactionId = callbackData.replace('visto:', '');\n} else if (callbackData.startsWith('pago:')) {\n  action = 'request_payment_method';\n  transactionId = callbackData.replace('pago:', '');\n} else if (callbackData.startsWith('comp_file|')) {\n  action = 'request_receipt_upload';\n  transactionId = callbackData.replace('comp_file|', '');\n}\n\nreturn {\n  json: { action, transactionId, extraData, chatId, callbackId, rawData: callbackData }\n};"
+      },
+      "id": "parse-callback",
+      "name": "Parse Callback Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        500,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "rules": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "set_payment_method",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputLabel": "Set Payment"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "mark_viewed",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputLabel": "Mark Viewed"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "request_payment_method",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputLabel": "Request Payment"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "id": "callback-router",
+      "name": "Route Callback Action",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        720,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "expense_records",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id_transaccion",
+              "keyValue": "={{ $json.transactionId }}"
+            }
+          ]
+        },
+        "dataToSend": "defineBelow",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldName": "forma_pago",
+              "fieldValue": "={{ $json.extraData }}"
+            }
+          ]
+        }
+      },
+      "id": "update-payment-db",
+      "name": "Update Payment (DB)",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1000,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "<ID>",
+        "text": "Pago marcado como: {{ $('Parse Callback Data').first().json.extraData }}\nID: {{ $('Parse Callback Data').first().json.transactionId }}",
+        "additionalFields": {}
+      },
+      "id": "confirm-payment",
+      "name": "Confirm Payment",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1220,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "expense_records",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id_transaccion",
+              "keyValue": "={{ $json.transactionId }}"
+            }
+          ]
+        },
+        "dataToSend": "defineBelow",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldName": "vista_por_usuario",
+              "fieldValue": "true"
+            }
+          ]
+        }
+      },
+      "id": "mark-viewed-db",
+      "name": "Mark Viewed (DB)",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1000,
+        150
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "<ID>",
+        "text": "Marcado como visto\nID: {{ $('Parse Callback Data').first().json.transactionId }}",
+        "additionalFields": {}
+      },
+      "id": "confirm-viewed",
+      "name": "Confirm Viewed",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1220,
+        150
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "<ID>",
+        "text": "Selecciona la forma de pago para ID: {{ $json.transactionId }}",
+        "additionalFields": {
+          "replyMarkup": "inlineKeyboard",
+          "inlineKeyboard": {
+            "rows": [
+              {
+                "row": {
+                  "buttons": [
+                    {
+                      "text": "Transferencia",
+                      "additionalFields": {
+                        "callbackData": "metodo:Transferencia|{{ $json.transactionId }}"
+                      }
+                    },
+                    {
+                      "text": "Cheque",
+                      "additionalFields": {
+                        "callbackData": "metodo:Cheque|{{ $json.transactionId }}"
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "row": {
+                  "buttons": [
+                    {
+                      "text": "Efectivo",
+                      "additionalFields": {
+                        "callbackData": "metodo:Efectivo|{{ $json.transactionId }}"
+                      }
+                    },
+                    {
+                      "text": "Tarjeta",
+                      "additionalFields": {
+                        "callbackData": "metodo:Tarjeta|{{ $json.transactionId }}"
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      },
+      "id": "send-payment-options",
+      "name": "Send Payment Options",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1000,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "operation": "get",
+        "fileId": "<ID>"
+      },
+      "id": "get-image-file",
+      "name": "Get Image File",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        500,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "upload",
+        "name": "=receipt_{{ $now.format('yyyyMMdd_HHmmss') }}.jpg",
+        "driveId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "root"
+        },
+        "options": {}
+      },
+      "id": "upload-image-drive",
+      "name": "Upload to Drive",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        720,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "modelId": "gpt-4o-mini",
+        "messages": {
+          "values": [
+            {
+              "content": "Analiza la imagen del comprobante. Devuelve SOLO JSON:\n{\"FECHA DEL COBRO\": \"DD/MM/YYYY\", \"SERVICIO / COMERCIO\": \"\", \"CONCEPTO\": \"\", \"IMPORTE\": \"\", \"CATEGORIA\": \"\", \"TIPO DE GASTO\": \"Unico o Recurrente\"}"
+            }
+          ]
+        },
+        "options": {
+          "maxTokens": 1024,
+          "temperature": 0.3
+        }
+      },
+      "id": "openai-image",
+      "name": "OpenAI Analyze Image",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.4,
+      "position": [
+        940,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json.message?.content || '';\nconst chatId = $('Telegram Trigger').first().json.message?.chat?.id;\nconst driveData = $('Upload to Drive').first().json;\n\nlet parsedData;\ntry {\n  const jsonMatch = response.match(/\\{[\\s\\S]*\\}/);\n  parsedData = jsonMatch ? JSON.parse(jsonMatch[0]) : {};\n} catch (e) {\n  parsedData = {\"CONCEPTO\": \"Error parsing\"};\n}\n\nconst fecha = parsedData[\"FECHA DEL COBRO\"] || '';\nconst importe = parsedData[\"IMPORTE\"] || '0';\nlet dateStr = '';\nif (fecha) {\n  const parts = fecha.split('/');\n  if (parts.length === 3) dateStr = parts[2] + parts[1].padStart(2,'0') + parts[0].padStart(2,'0');\n}\nif (!dateStr) {\n  const now = new Date();\n  dateStr = now.getFullYear() + (now.getMonth()+1).toString().padStart(2,'0') + now.getDate().toString().padStart(2,'0');\n}\nconst transactionId = dateStr + importe.replace(/[^0-9]/g,'').padStart(9,'0').slice(-9);\n\nreturn {\n  json: {...parsedData, ID_INTERNO: transactionId, driveWebLink: driveData.webViewLink, chatId, origen: 'telegram'}\n};"
+      },
+      "id": "parse-image-response",
+      "name": "Parse Image Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1160,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "tableId": "expense_records",
+        "dataToSend": "defineBelow",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldName": "id_transaccion",
+              "fieldValue": "={{ $json.ID_INTERNO }}"
+            },
+            {
+              "fieldName": "servicio_comercio",
+              "fieldValue": "={{ $json['SERVICIO / COMERCIO'] }}"
+            },
+            {
+              "fieldName": "importe",
+              "fieldValue": "={{ $json.IMPORTE }}"
+            },
+            {
+              "fieldName": "categoria",
+              "fieldValue": "={{ $json.CATEGORIA }}"
+            },
+            {
+              "fieldName": "link_archivo",
+              "fieldValue": "={{ $json.driveWebLink }}"
+            },
+            {
+              "fieldName": "chat_id",
+              "fieldValue": "={{ $json.chatId }}"
+            },
+            {
+              "fieldName": "origen_registro",
+              "fieldValue": "telegram_image"
+            }
+          ]
+        }
+      },
+      "id": "insert-image-expense",
+      "name": "Insert Expense (Image)",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1380,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "<ID>",
+        "text": "Gasto registrado:\nComercio: {{ $('Parse Image Response').first().json['SERVICIO / COMERCIO'] }}\nImporte: ${{ $('Parse Image Response').first().json.IMPORTE }}\nID: {{ $('Parse Image Response').first().json.ID_INTERNO }}",
+        "additionalFields": {}
+      },
+      "id": "confirm-image-expense",
+      "name": "Confirm Image Expense",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1600,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "operation": "get",
+        "fileId": "<ID>"
+      },
+      "id": "get-audio-file",
+      "name": "Get Audio File",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        500,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "audio",
+        "operation": "transcribe",
+        "options": {
+          "language": "es"
+        }
+      },
+      "id": "whisper-transcribe",
+      "name": "Whisper Transcribe",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.4,
+      "position": [
+        720,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "modelId": "gpt-4o-mini",
+        "messages": {
+          "values": [
+            {
+              "content": "Analiza este texto sobre un gasto: \"{{ $json.text }}\"\nDevuelve JSON: {\"SERVICIO / COMERCIO\": \"\", \"IMPORTE\": \"\", \"CATEGORIA\": \"\"}"
+            }
+          ]
+        },
+        "options": {
+          "maxTokens": 512
+        }
+      },
+      "id": "openai-audio",
+      "name": "OpenAI Structure Audio",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.4,
+      "position": [
+        940,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json.message?.content || '';\nconst chatId = $('Telegram Trigger').first().json.message?.chat?.id;\nconst text = $('Whisper Transcribe').first().json.text;\n\nlet parsedData;\ntry {\n  const jsonMatch = response.match(/\\{[\\s\\S]*\\}/);\n  parsedData = jsonMatch ? JSON.parse(jsonMatch[0]) : {};\n} catch(e) { parsedData = {}; }\n\nconst now = new Date();\nconst dateStr = now.getFullYear() + (now.getMonth()+1).toString().padStart(2,'0') + now.getDate().toString().padStart(2,'0');\nconst importe = parsedData.IMPORTE || '0';\nconst transactionId = dateStr + importe.replace(/[^0-9]/g,'').padStart(9,'0').slice(-9);\n\nreturn {json: {...parsedData, ID_INTERNO: transactionId, chatId, transcribedText: text}};"
+      },
+      "id": "parse-audio-response",
+      "name": "Parse Audio Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1160,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "tableId": "expense_records",
+        "dataToSend": "defineBelow",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldName": "id_transaccion",
+              "fieldValue": "={{ $json.ID_INTERNO }}"
+            },
+            {
+              "fieldName": "servicio_comercio",
+              "fieldValue": "={{ $json['SERVICIO / COMERCIO'] }}"
+            },
+            {
+              "fieldName": "importe",
+              "fieldValue": "={{ $json.IMPORTE }}"
+            },
+            {
+              "fieldName": "chat_id",
+              "fieldValue": "={{ $json.chatId }}"
+            },
+            {
+              "fieldName": "notas",
+              "fieldValue": "={{ $json.transcribedText }}"
+            },
+            {
+              "fieldName": "origen_registro",
+              "fieldValue": "telegram_audio"
+            }
+          ]
+        }
+      },
+      "id": "insert-audio-expense",
+      "name": "Insert Expense (Audio)",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1380,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "<ID>",
+        "text": "Gasto por audio registrado:\nComercio: {{ $('Parse Audio Response').first().json['SERVICIO / COMERCIO'] }}\nImporte: ${{ $('Parse Audio Response').first().json.IMPORTE }}\nTexto: {{ $('Parse Audio Response').first().json.transcribedText }}",
+        "additionalFields": {}
+      },
+      "id": "confirm-audio",
+      "name": "Confirm Audio Expense",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1600,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "modelId": "gpt-4o-mini",
+        "messages": {
+          "values": [
+            {
+              "content": "Analiza este texto: \"{{ $json.message?.text }}\"\nDevuelve JSON: {\"SERVICIO / COMERCIO\": \"\", \"IMPORTE\": \"\", \"CATEGORIA\": \"\", \"ES_GASTO_VALIDO\": true/false}"
+            }
+          ]
+        },
+        "options": {
+          "maxTokens": 512
+        }
+      },
+      "id": "openai-text",
+      "name": "OpenAI Analyze Text",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.4,
+      "position": [
+        500,
+        800
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json.message?.content || '';\nconst chatId = $('Telegram Trigger').first().json.message?.chat?.id;\nconst originalText = $('Telegram Trigger').first().json.message?.text;\n\nlet parsedData;\ntry {\n  const jsonMatch = response.match(/\\{[\\s\\S]*\\}/);\n  parsedData = jsonMatch ? JSON.parse(jsonMatch[0]) : {ES_GASTO_VALIDO: false};\n} catch(e) { parsedData = {ES_GASTO_VALIDO: false}; }\n\nif (!parsedData.ES_GASTO_VALIDO) return {json: {isValid: false, chatId, originalText}};\n\nconst now = new Date();\nconst dateStr = now.getFullYear() + (now.getMonth()+1).toString().padStart(2,'0') + now.getDate().toString().padStart(2,'0');\nconst importe = parsedData.IMPORTE || '0';\nconst transactionId = dateStr + importe.replace(/[^0-9]/g,'').padStart(9,'0').slice(-9);\n\nreturn {json: {...parsedData, ID_INTERNO: transactionId, chatId, originalText, isValid: true}};"
+      },
+      "id": "parse-text-response",
+      "name": "Parse Text Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        800
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "valid",
+              "leftValue": "={{ $json.isValid }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "is-valid-expense",
+      "name": "Is Valid Expense?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        940,
+        800
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "tableId": "expense_records",
+        "dataToSend": "defineBelow",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldName": "id_transaccion",
+              "fieldValue": "={{ $json.ID_INTERNO }}"
+            },
+            {
+              "fieldName": "servicio_comercio",
+              "fieldValue": "={{ $json['SERVICIO / COMERCIO'] }}"
+            },
+            {
+              "fieldName": "importe",
+              "fieldValue": "={{ $json.IMPORTE }}"
+            },
+            {
+              "fieldName": "chat_id",
+              "fieldValue": "={{ $json.chatId }}"
+            },
+            {
+              "fieldName": "notas",
+              "fieldValue": "={{ $json.originalText }}"
+            },
+            {
+              "fieldName": "origen_registro",
+              "fieldValue": "telegram_text"
+            }
+          ]
+        }
+      },
+      "id": "insert-text-expense",
+      "name": "Insert Expense (Text)",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1160,
+        750
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "<ID>",
+        "text": "Gasto registrado:\nComercio: {{ $('Parse Text Response').first().json['SERVICIO / COMERCIO'] }}\nImporte: ${{ $('Parse Text Response').first().json.IMPORTE }}",
+        "additionalFields": {}
+      },
+      "id": "confirm-text",
+      "name": "Confirm Text Expense",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1380,
+        750
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "<ID>",
+        "text": "No pude identificar un gasto. Envia imagen, audio o texto con formato: comercio monto concepto",
+        "additionalFields": {}
+      },
+      "id": "invalid-text",
+      "name": "Invalid Text Response",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1160,
+        900
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "<ID>",
+        "text": "Bienvenido al Bot de Gastos!\n\nEnvia:\n- Fotos de recibos\n- PDFs\n- Notas de voz\n- Texto describiendo gastos",
+        "additionalFields": {}
+      },
+      "id": "welcome-message",
+      "name": "Welcome Message",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        500,
+        1000
+      ]
+    }
+  ],
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Route Message Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Message Type": {
+      "main": [
+        [
+          {
+            "node": "Parse Callback Data",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get Image File",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get Image File",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get Audio File",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "OpenAI Analyze Text",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Welcome Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Callback Data": {
+      "main": [
+        [
+          {
+            "node": "Route Callback Action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Callback Action": {
+      "main": [
+        [
+          {
+            "node": "Update Payment (DB)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark Viewed (DB)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Payment Options",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Payment (DB)": {
+      "main": [
+        [
+          {
+            "node": "Confirm Payment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Viewed (DB)": {
+      "main": [
+        [
+          {
+            "node": "Confirm Viewed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Image File": {
+      "main": [
+        [
+          {
+            "node": "Upload to Drive",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload to Drive": {
+      "main": [
+        [
+          {
+            "node": "OpenAI Analyze Image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Analyze Image": {
+      "main": [
+        [
+          {
+            "node": "Parse Image Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Image Response": {
+      "main": [
+        [
+          {
+            "node": "Insert Expense (Image)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Expense (Image)": {
+      "main": [
+        [
+          {
+            "node": "Confirm Image Expense",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Audio File": {
+      "main": [
+        [
+          {
+            "node": "Whisper Transcribe",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Whisper Transcribe": {
+      "main": [
+        [
+          {
+            "node": "OpenAI Structure Audio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Structure Audio": {
+      "main": [
+        [
+          {
+            "node": "Parse Audio Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Audio Response": {
+      "main": [
+        [
+          {
+            "node": "Insert Expense (Audio)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Expense (Audio)": {
+      "main": [
+        [
+          {
+            "node": "Confirm Audio Expense",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Analyze Text": {
+      "main": [
+        [
+          {
+            "node": "Parse Text Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Text Response": {
+      "main": [
+        [
+          {
+            "node": "Is Valid Expense?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Valid Expense?": {
+      "main": [
+        [
+          {
+            "node": "Insert Expense (Text)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Invalid Text Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Expense (Text)": {
+      "main": [
+        [
+          {
+            "node": "Confirm Text Expense",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false
+}

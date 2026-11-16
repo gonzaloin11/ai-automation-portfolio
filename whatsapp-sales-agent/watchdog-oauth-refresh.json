@@ -1,0 +1,288 @@
+{
+  "name": "Watchdog OAuth ML - Vitagel",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Watchdog OAuth ML - Vitagel\n\nRed de seguridad independiente del OAuth Manager.\nCada 2h chequea si el token expira pronto (<2h) y lo refresca.\nSi falla, envía alerta Gmail a you@example.com.\n\n**Credentials:** PostgreSQL + Gmail OAuth2 (attach your own)\n**App ML:** <ML_CLIENT_ID>"
+      },
+      "id": "wd-0001",
+      "name": "Sticky Note - Watchdog Info",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        192,
+        -96
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 2
+            }
+          ]
+        }
+      },
+      "id": "wd-0010",
+      "name": "Schedule Watchdog",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        208,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT refresh_token, access_token, expires_at, EXTRACT(EPOCH FROM (expires_at - NOW())) / 3600 AS hours_remaining FROM ml_tokens WHERE app_id = 'vitagel' LIMIT 1",
+        "options": {}
+      },
+      "id": "wd-0020",
+      "name": "Check Token Expiry",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        448,
+        160
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "version": 3,
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "wd-cond-001",
+              "leftValue": "={{ $json.hours_remaining.toNumber() }}",
+              "rightValue": 2,
+              "operator": {
+                "type": "number",
+                "operation": "lt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "wd-0030",
+      "name": "Token Expiring Soon?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        704,
+        160
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "wd-0040",
+      "name": "No Action",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        960,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.mercadolibre.com/oauth/token",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "grant_type",
+              "value": "refresh_token"
+            },
+            {
+              "name": "client_id",
+              "value": "<ML_CLIENT_ID>"
+            },
+            {
+              "name": "client_secret",
+              "value": "<ML_CLIENT_SECRET>"
+            },
+            {
+              "name": "refresh_token",
+              "value": "={{ $('Check Token Expiry').item.json.refresh_token }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "wd-0050",
+      "name": "Refresh Token",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        960,
+        80
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "version": 3,
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "wd-cond-002",
+              "leftValue": "={{ $json.access_token }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "wd-0060",
+      "name": "Refresh OK?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1232,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE ml_tokens SET access_token = $1, refresh_token = $2, token_type = $3, expires_in = $4, scope = $5, user_id = $6, expires_at = NOW() + INTERVAL '1 second' * $4, updated_at = NOW() WHERE app_id = 'vitagel'",
+        "options": {
+          "queryReplacement": "={{ $json.access_token }},={{ $json.refresh_token }},={{ $json.token_type }},={{ $json.expires_in }},={{ $json.scope }},={{ $json.user_id }}"
+        }
+      },
+      "id": "wd-0070",
+      "name": "Update Tokens",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1504,
+        0
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "sendTo": "you@example.com",
+        "subject": "=🚨 WATCHDOG: OAuth ML Vitagel - Token MUERTO",
+        "message": "=⚠️ WATCHDOG ALERT - Token ML Vitagel\n\nEl refresh automático del Watchdog FALLÓ.\n\nTimestamp: {{ $now.toISO() }}\nHoras restantes del token: {{ $('Check Token Expiry').item.json.hours_remaining }}\nExpires at: {{ $('Check Token Expiry').item.json.expires_at }}\nError recibido: {{ JSON.stringify($('Refresh Token').item.json) }}\n\n🔴 ACCIÓN REQUERIDA:\n1. Revisá el workflow OAuth Manager\n2. Ejecutá manualmente el refresh\n3. Si el refresh_token murió, re-autorizá desde la URL de OAuth",
+        "options": {}
+      },
+      "id": "wd-0080",
+      "name": "Alert Refresh Failed",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1504,
+        208
+      ]
+    }
+  ],
+  "connections": {
+    "Schedule Watchdog": {
+      "main": [
+        [
+          {
+            "node": "Check Token Expiry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Token Expiry": {
+      "main": [
+        [
+          {
+            "node": "Token Expiring Soon?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Token Expiring Soon?": {
+      "main": [
+        [
+          {
+            "node": "Refresh Token",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Refresh Token": {
+      "main": [
+        [
+          {
+            "node": "Refresh OK?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Refresh OK?": {
+      "main": [
+        [
+          {
+            "node": "Update Tokens",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Alert Refresh Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Argentina/Buenos_Aires",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "errorWorkflow": "Q7Re72V4C7cxIQNR",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  }
+}

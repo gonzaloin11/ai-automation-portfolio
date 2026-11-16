@@ -1,0 +1,168 @@
+{
+  "name": "ML Tool - Precio Producto",
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "jsonExample",
+        "jsonExample": "{\n  \"item_id\": \"MLA1234567890\"\n}"
+      },
+      "id": "t3-trigger",
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        208,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT access_token FROM ml_tokens WHERE app_id = 'vitagel' LIMIT 1",
+        "options": {}
+      },
+      "id": "t3-get-token",
+      "name": "Get ML Token",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        432,
+        304
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "url": "=https://api.mercadolibre.com/items/{{ $('Execute Workflow Trigger').item.json.item_id }}?attributes=id,title,price,original_price,sale_price,base_price,currency_id,available_quantity,permalink,thumbnail,sale_terms",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Get ML Token').item.json.access_token }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "t3-get-price",
+      "name": "Get Item Price",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        640,
+        304
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "url": "=https://api.mercadolibre.com/seller-promotions/items/{{ $('Execute Workflow Trigger').item.json.item_id }}?app_version=v2",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Get ML Token').item.json.access_token }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "t3-get-promos",
+      "name": "Get Seller Promotions",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        864,
+        304
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $('Get Item Price').item.json;\nconst promoRaw = $('Get Seller Promotions').item.json;\n\nif (!item || !item.id) {\n  return [{ json: { result: 'No se pudo obtener el precio. Verific\\u00e1 el ID del producto.' } }];\n}\n\nconst moneda = item.currency_id || 'ARS';\nlet precioOriginal = null;\nlet precioFinal = null;\nlet descuentoPct = 0;\nlet tienePromo = false;\nlet fuentePrecio = 'items';\n\nconst promos = Array.isArray(promoRaw) ? promoRaw : (promoRaw && Array.isArray(promoRaw.results) ? promoRaw.results : null);\n\nif (promos && promos.length > 0) {\n  const promo = promos.find(p => p.status === 'started' || p.status === 'active') || promos[0];\n  if (promo.new_price || promo.price) {\n    const promoPrice = promo.new_price || promo.price;\n    const promoOriginal = promo.original_price || promo.old_price || item.price;\n    if (promoPrice < promoOriginal) {\n      precioFinal = `$${promoPrice.toLocaleString('es-AR')}`;\n      precioOriginal = `$${promoOriginal.toLocaleString('es-AR')}`;\n      descuentoPct = Math.round((1 - promoPrice / promoOriginal) * 100);\n      tienePromo = true;\n      fuentePrecio = 'seller-promotions';\n    }\n  }\n}\n\nif (!tienePromo) {\n  const precio = item.price;\n\n  if (item.sale_price && typeof item.sale_price === 'object' && item.sale_price.amount && item.sale_price.amount < precio) {\n    precioOriginal = `$${precio.toLocaleString('es-AR')}`;\n    precioFinal = `$${item.sale_price.amount.toLocaleString('es-AR')}`;\n    descuentoPct = Math.round((1 - item.sale_price.amount / precio) * 100);\n    tienePromo = true;\n    fuentePrecio = 'sale_price';\n  }\n  else if (item.original_price && item.original_price > precio) {\n    precioOriginal = `$${item.original_price.toLocaleString('es-AR')}`;\n    precioFinal = `$${precio.toLocaleString('es-AR')}`;\n    descuentoPct = Math.round((1 - precio / item.original_price) * 100);\n    tienePromo = true;\n    fuentePrecio = 'original_price';\n  }\n  else if (item.base_price && item.base_price > precio) {\n    precioOriginal = `$${item.base_price.toLocaleString('es-AR')}`;\n    precioFinal = `$${precio.toLocaleString('es-AR')}`;\n    descuentoPct = Math.round((1 - precio / item.base_price) * 100);\n    tienePromo = true;\n    fuentePrecio = 'base_price';\n  }\n  else {\n    precioFinal = `$${precio.toLocaleString('es-AR')}`;\n  }\n}\n\nlet result = `\\ud83d\\udcb0 PRECIO - ${item.title}\\n\\n`;\nresult += `Precio actual: ${precioFinal} ${moneda}\\n`;\nif (tienePromo) {\n  result += `Precio original: ${precioOriginal} ${moneda}\\n`;\n  result += `Descuento: ${descuentoPct}% OFF \\ud83d\\udd25\\n`;\n} else {\n  result += `Sin descuento activo\\n`;\n}\nresult += `Stock: ${item.available_quantity || 'N/A'} unidades\\n`;\nresult += `Link: ${item.permalink || 'N/A'}\\n`;\nresult += `ID: ${item.id}`;\n\nreturn [{ json: { result } }];"
+      },
+      "id": "t3-format",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1088,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## ML Tool - Precio Producto\n**Input**: item_id (ej: MLA1234567890)\n**Output**: Precio actual con promos, precio original, descuento\n**Llamado por**: AI Agent L\\u00eda via toolWorkflow\n\n**Flujo**: Get Token \\u2192 Get Item Price \\u2192 Get Seller Promotions \\u2192 Format Response\n**Prioridad precios**: seller-promotions > sale_price > original_price > base_price"
+      },
+      "id": "t3-sticky",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        160,
+        128
+      ]
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get ML Token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get ML Token": {
+      "main": [
+        [
+          {
+            "node": "Get Item Price",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Item Price": {
+      "main": [
+        [
+          {
+            "node": "Get Seller Promotions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Seller Promotions": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Argentina/Buenos_Aires",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "Q7Re72V4C7cxIQNR"
+  }
+}

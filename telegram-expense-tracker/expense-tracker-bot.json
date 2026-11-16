@@ -1,0 +1,3688 @@
+{
+  "name": "Telegram Expense Tracker",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "ULTIMO REVIEW: 24/01\n\n\nLogs\nProblem in node '📊 Guardar en Sheets'\nNode '📤 Subir PDF a Drive' hasn't been executed\n\nSHEET MANDA ARCHIVO A PDF O IMG PERO HAY QUE VER COMO HACERLO EN CONSOLIDAR DATOS O QUE CREE ESTE \nARCHIVO PARA TEXTO TMB (VER MAKE ORIGINAL)\n\n\n26/01\nHACER UN RECEIPT PARA SUBIR IMAGEN A GOOGLE DRIVE (HTTP RECEIPT)\n\n",
+        "height": 784,
+        "width": 992
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -928,
+        992
+      ],
+      "id": "be0e8c6e-25b9-4a2e-a60d-c59c485a2c0c",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "content": "## 🤖 acme Bot Principal\n### Migrado desde Make.com\n\n**Funcionalidad:**\n- Recibe mensajes de Telegram (texto, imagen, PDF, audio)\n- Detecta tipo de archivo y rutea al procesador correcto\n- Extrae datos con Vision AI\n- Registra en Google Sheets y PostgreSQL\n- Sube comprobantes a Google Drive\n- Verifica duplicados por id_transaccion",
+        "height": 340,
+        "width": 400,
+        "color": 4
+      },
+      "id": "49281741-3d99-4bd3-b2a8-fef3f5452c45",
+      "name": "Sticky Note - Intro",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -2336,
+        -2352
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('📱 Telegram Trigger').item.json.message.chat.id }}",
+        "text": "👋 ¡Bienvenido a tu Asistente Financiero!\n \n📸 Foto de un comprobante\n📄 PDF de una factura\n🎙️ Audio describiendo un gasto\n✏️ Texto con los detalles\n\n¡Procesaré todo automáticamente!",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "b1289a71-5c98-4ac8-91fe-ef269408a992",
+      "name": "👋 Enviar Bienvenida",
+      "type": "n8n-nodes-base.telegram",
+      "position": [
+        -2144,
+        -1968
+      ],
+      "typeVersion": 1.2
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id_transaccion, servicio_comercio, comprobante_cargado \nFROM acme_registros \nWHERE id_transaccion IS NOT NULL \nORDER BY fecha_creacion_registro DESC \nLIMIT 1",
+        "options": {}
+      },
+      "id": "6c006c5b-235a-4bda-a296-c291bfc32e18",
+      "name": "🔍 Obtener Último ID",
+      "type": "n8n-nodes-base.postgres",
+      "position": [
+        -2144,
+        -1776
+      ],
+      "typeVersion": 2.5,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('📱 Telegram Trigger').item.json.message.document?.mime_type ?? '' }}",
+                    "rightValue": "application/pdf",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "3cabac4d-2321-4c8b-8914-8301106cff5f"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "PDF"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ ($('📱 Telegram Trigger').item.json.message.photo ?? []).length }}",
+                    "rightValue": 0,
+                    "operator": {
+                      "type": "number",
+                      "operation": "gt"
+                    },
+                    "id": "3d5167ee-8662-45a5-ae72-20939a191dab"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Imagen"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ !!$('📱 Telegram Trigger').item.json.message.voice }}",
+                    "rightValue": true,
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "equals"
+                    },
+                    "id": "6b641c06-b116-4db3-a772-adce1ca63ded"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Audio"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ !!$('📱 Telegram Trigger').item.json.message.text }}",
+                    "rightValue": true,
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "equals"
+                    },
+                    "id": "0205ccc1-978e-43a1-964e-7e84337363cc"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Texto"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "id": "899808c0-9734-4aa0-abf9-0ce1dd0933ac",
+      "name": "🔀 Tipo de Mensaje",
+      "type": "n8n-nodes-base.switch",
+      "position": [
+        -1920,
+        -1824
+      ],
+      "typeVersion": 3
+    },
+    {
+      "parameters": {
+        "content": "## 📄 Rama PDF\nProcesa documentos PDF",
+        "height": 80,
+        "width": 200,
+        "color": 5
+      },
+      "id": "2a750b08-83bf-4b08-bbb2-4fd7f3a879bc",
+      "name": "Sticky Note - PDF",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -1264,
+        -2144
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "fileId": "={{ $('📱 Telegram Trigger').item.json.message.document.file_id }}",
+        "additionalFields": {}
+      },
+      "id": "ef2e66a9-a61e-408e-8eaf-167625b35bf0",
+      "name": "📥 Descargar PDF",
+      "type": "n8n-nodes-base.telegram",
+      "position": [
+        -1248,
+        -2160
+      ],
+      "typeVersion": 1.2
+    },
+    {
+      "parameters": {
+        "inputDataFieldName": "=data",
+        "name": "={{ $now.format('yyyy-MM-dd_HHmmss') }}_{{ $('📱 Telegram Trigger').item.json.message.document.file_name }}",
+        "driveId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "<GOOGLE_RESOURCE_ID>",
+          "mode": "list",
+          "cachedResultName": "<redacted>",
+          "cachedResultUrl": "<redacted>"
+        },
+        "options": {}
+      },
+      "id": "6752a408-25c3-4ea1-ab2c-d84ae0d78a56",
+      "name": "📤 Subir PDF a Drive",
+      "type": "n8n-nodes-base.googleDrive",
+      "position": [
+        -1024,
+        -2256
+      ],
+      "typeVersion": 3,
+      "alwaysOutputData": false,
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "options": {}
+      },
+      "id": "00c1e2b3-065a-4e2f-b5dc-58c25b19df9e",
+      "name": "📖 Extraer Texto PDF",
+      "type": "n8n-nodes-base.extractFromFile",
+      "position": [
+        -1024,
+        -2064
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "content": "## 📸 Rama Imagen\nProcesa fotos de comprobantes",
+        "height": 80,
+        "width": 200,
+        "color": 6
+      },
+      "id": "b3c06b1b-c0be-4ed1-b574-418398d3dd02",
+      "name": "Sticky Note - Image",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -1440,
+        -1872
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "fileId": "={{ $('📱 Telegram Trigger').item.json.message.photo.pop().file_id }}",
+        "additionalFields": {}
+      },
+      "id": "b6c9b158-147c-4730-a9c1-d0b82bb7d21a",
+      "name": "📥 Descargar Imagen",
+      "type": "n8n-nodes-base.telegram",
+      "position": [
+        -1696,
+        -1872
+      ],
+      "typeVersion": 1.2
+    },
+    {
+      "parameters": {
+        "name": "={{ $now.format('yyyy-MM-dd_HHmmss') }}_comprobante.jpg",
+        "driveId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "<GOOGLE_RESOURCE_ID>",
+          "mode": "list",
+          "cachedResultName": "<redacted>",
+          "cachedResultUrl": "<redacted>"
+        },
+        "options": {}
+      },
+      "id": "04ab0d11-55d3-497e-ad2d-a833d68a536c",
+      "name": "📤 Subir Imagen a Drive",
+      "type": "n8n-nodes-base.googleDrive",
+      "position": [
+        -1472,
+        -1872
+      ],
+      "typeVersion": 3,
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "content": "## 🎙️ Rama Audio\nTranscribe y procesa audio",
+        "height": 128,
+        "width": 344,
+        "color": 7
+      },
+      "id": "d0fb76d6-0110-407e-9cd0-97b0a76ecd66",
+      "name": "Sticky Note - Audio",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -1376,
+        -1552
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "fileId": "={{ $('📱 Telegram Trigger').item.json.message.voice.file_id }}",
+        "additionalFields": {}
+      },
+      "id": "d647d0c2-ffec-4d16-a795-5d4d0a8c882c",
+      "name": "📥 Descargar Audio",
+      "type": "n8n-nodes-base.telegram",
+      "position": [
+        -1248,
+        -1680
+      ],
+      "typeVersion": 1.2
+    },
+    {
+      "parameters": {
+        "resource": "audio",
+        "operation": "transcribe",
+        "options": {
+          "language": "es"
+        }
+      },
+      "id": "ae3ad69c-a187-4bc0-b280-2cf66b2f644c",
+      "name": "🗣️ Transcribir Audio",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "position": [
+        -1024,
+        -1680
+      ],
+      "typeVersion": 1.3
+    },
+    {
+      "parameters": {
+        "content": "## ✏️ Rama Texto\nProcesa mensajes de texto",
+        "height": 96,
+        "width": 200
+      },
+      "id": "34a54d3f-4ee2-46f4-83ab-d7df71755da8",
+      "name": "Sticky Note - Text",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -608,
+        -1360
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "texto-gasto",
+              "name": "texto_gasto",
+              "value": "={{ $('📱 Telegram Trigger').item.json.message.text }}",
+              "type": "string"
+            },
+            {
+              "id": "chat-id",
+              "name": "chat_id",
+              "value": "={{ $('📱 Telegram Trigger').item.json.message.chat.id }}",
+              "type": "number"
+            },
+            {
+              "id": "tipo-input",
+              "name": "tipo_input",
+              "value": "texto",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "37c34cbc-6085-4a21-9676-418b95140653",
+      "name": "📝 Preparar Texto",
+      "type": "n8n-nodes-base.set",
+      "position": [
+        -1024,
+        -1440
+      ],
+      "typeVersion": 3.4
+    },
+    {
+      "parameters": {
+        "content": "## 🤖 Extracción IA\nProcesamiento con Vision API",
+        "height": 80,
+        "width": 400,
+        "color": 3
+      },
+      "id": "b4b20758-293e-407e-9708-4d31556b5aea",
+      "name": "Sticky Note - AI",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -400,
+        -1968
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4.1-mini",
+          "mode": "list",
+          "cachedResultName": "<redacted>"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=Eres un asistente especializado en extraer datos de comprobantes y facturas.\n\nExtrae la siguiente información del comprobante/texto proporcionado:\n\n1. **fecha_factura**: Fecha del comprobante (formato DD/MM/YYYY)\n2. **servicio_comercio**: Nombre del comercio o empresa\n3. **concepto**: Descripción del producto/servicio\n4. **importe**: Monto total (formato argentino: 1.250,50)\n5. **id_transaccion**: Número de referencia, orden o factura (si existe)\n6. **categoria**: Clasificar en una de estas categorías:\n   - Vivienda, Alimentación, Transporte, Salud y Bienestar, Viajes, Suscripciones, Educación, Entretenimiento y Ocio, Compras Personales / Ropa, Deudas y Préstamos, Misceláneos, AI Tools, Servicios, Impuestos, Café, Tarjeta, Ingresos\n7. **tipo_gasto**: \"Único\" o \"Recurrente\"\n\nResponde SOLO con un JSON válido sin explicaciones adicionales.\n\nEjemplo de respuesta:\n```json\n{\n  \"fecha_factura\": \"15/01/2026\",\n  \"servicio_comercio\": \"Uber\",\n  \"concepto\": \"Viaje al aeropuerto\",\n  \"importe\": \"2.500,00\",\n  \"id_transaccion\": \"TRX-123456\",\n  \"categoria\": \"Transporte\",\n  \"tipo_gasto\": \"Único\"\n}\n```\n\nContenido a procesar:\n{{ $json.text || $json.texto_gasto || 'Sin contenido' }}"
+            }
+          ]
+        },
+        "options": {
+          "temperature": 0.1
+        }
+      },
+      "id": "af0694eb-a022-4f4f-8e12-3c52a8d8a3e3",
+      "name": "🧠 Extraer Datos (GPT-4)",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "position": [
+        -576,
+        -1776
+      ],
+      "typeVersion": 1.3,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parsear respuesta JSON del LLM\nconst items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  let extracted = {};\n  \n  try {\n    let content = item.json.message?.content || item.json.text || '';\n    content = content.replace(/```json\\n?/g, '').replace(/```\\n?/g, '').trim();\n    extracted = JSON.parse(content);\n    extracted.parse_failed = false;\n  } catch (e) {\n    extracted = {\n      parse_failed: true,\n      raw_content: (item.json.message?.content || item.json.text || '').substring(0, 500),\n      error: e.message\n    };\n  }\n  \n  if (!extracted.parse_failed && (!extracted.id_transaccion || extracted.id_transaccion === '')) {\n    extracted.id_transaccion = Date.now().toString();\n  }\n  \n  results.push({ json: extracted });\n}\n\nreturn results;"
+      },
+      "id": "8c1fb3c7-9465-494e-9643-a61c55456e74",
+      "name": "🔧 Parsear JSON",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        -224,
+        -1824
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT id_transaccion FROM acme_registros WHERE id_transaccion = '{{ $json.id_transaccion }}' LIMIT 1",
+        "options": {}
+      },
+      "id": "a3a49a7c-393a-45c5-947f-9ad3cfd229ca",
+      "name": "🔍 Verificar Duplicado",
+      "type": "n8n-nodes-base.postgres",
+      "position": [
+        240,
+        -1920
+      ],
+      "typeVersion": 2.5,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "check-exists",
+              "leftValue": "={{ $('🔧 Parsear JSON').item.json.id_transaccion }}",
+              "rightValue": true,
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "8e4656d8-d018-4fc4-9947-4605ae2b5ba5",
+      "name": "❓ ¿Es Nuevo?",
+      "type": "n8n-nodes-base.if",
+      "position": [
+        464,
+        -1920
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('📱 Telegram Trigger').item.json.message.chat.id }}",
+        "text": "⚠️ Esta transacción ya fue ingresada anteriormente.\n\nID: {{ $('🔧 Parsear JSON').item.json.id_transaccion }}",
+        "additionalFields": {}
+      },
+      "id": "62d170e4-c35b-4f7d-b24e-16fc489bb241",
+      "name": "⚠️ Notificar Duplicado",
+      "type": "n8n-nodes-base.telegram",
+      "position": [
+        688,
+        -1824
+      ],
+      "typeVersion": 1.2
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO acme_registros (\n  id_transaccion,\n  fecha_fc,\n  servicio_comercio,\n  concepto,\n  importe,\n  categoria,\n  tipo_de_gasto,\n  estado,\n  link_comprobante,\n  fecha_creacion_registro\n) VALUES (\n  '{{ $('🔧 Parsear JSON').item.json.id_transaccion }}',\n  '{{ $('🔧 Parsear JSON').item.json.fecha_factura }}',\n  '{{ $('🔧 Parsear JSON').item.json.servicio_comercio }}',\n  '{{ $('🔧 Parsear JSON').item.json.concepto }}',\n  '{{ $('🔧 Parsear JSON').item.json.importe }}',\n  '{{ $('🔧 Parsear JSON').item.json.categoria }}',\n  '{{ $('🔧 Parsear JSON').item.json.tipo_gasto }}',\n  'Pendiente',\n  '{{ ($('📤 Subir PDF a Drive').isExecuted ? $('📤 Subir PDF a Drive').first().json.webViewLink : '') || ($('📤 Subir Imagen a Drive').isExecuted ? $('📤 Subir Imagen a Drive').first().json.webViewLink : '') || '' }}',\n  NOW()\n)\nON CONFLICT (id_transaccion) DO NOTHING\nRETURNING id_transaccion;",
+        "options": {}
+      },
+      "id": "77b6fd78-58d5-4538-9961-fe6c3b0da4e0",
+      "name": "💾 Insertar en DB",
+      "type": "n8n-nodes-base.postgres",
+      "position": [
+        688,
+        -2016
+      ],
+      "typeVersion": 2.5,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "<GOOGLE_RESOURCE_ID>",
+          "mode": "list",
+          "cachedResultName": "<redacted>",
+          "cachedResultUrl": "<redacted>"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "list",
+          "value": 2068031974,
+          "cachedResultUrl": "<redacted>",
+          "cachedResultName": "<redacted>"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "ESTADO": "Pendiente",
+            "IMPORTE": "={{ $('🔧 Parsear JSON').item.json.importe }}",
+            "CONCEPTO": "={{ $('🔧 Parsear JSON').item.json.concepto }}",
+            "Fecha de ingreso": "={{ $now.format('dd/MM/yyyy') }}",
+            "CATEGORÍA": "={{ $('🔧 Parsear JSON').item.json.categoria }}",
+            "TIPO DE GASTO": "={{ $('🔧 Parsear JSON').item.json.tipo_gasto }}",
+            "Link de archivo": "={{ ($('📤 Subir PDF a Drive').isExecuted ? $('📤 Subir PDF a Drive').first().json.webViewLink : '') || ($('📤 Subir Imagen a Drive').isExecuted ? $('📤 Subir Imagen a Drive').first().json.webViewLink : '') || '' }}",
+            "ID DE TRANSACCIÓN": "={{ $('🔧 Parsear JSON').item.json.id_transaccion }}",
+            "SERVICIO / COMERCIO": "={{ $('🔧 Parsear JSON').item.json.servicio_comercio }}",
+            "Usuario Ingreso": "={{ $('📱 Telegram Trigger').item.json.message.from.first_name }} {{ $('📱 Telegram Trigger').item.json.message.from.last_name }}"
+          },
+          "matchingColumns": [
+            "ID DE TRANSACCIÓN"
+          ],
+          "schema": [
+            {
+              "id": "Fecha de ingreso",
+              "displayName": "Fecha de ingreso",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "SERVICIO / COMERCIO",
+              "displayName": "SERVICIO / COMERCIO",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "CONCEPTO",
+              "displayName": "CONCEPTO",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "IMPORTE",
+              "displayName": "IMPORTE",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "ESTADO",
+              "displayName": "ESTADO",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "CATEGORÍA",
+              "displayName": "CATEGORÍA",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "ID DE TRANSACCIÓN",
+              "displayName": "ID DE TRANSACCIÓN",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "TIPO DE GASTO",
+              "displayName": "TIPO DE GASTO",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Link de archivo",
+              "displayName": "Link de archivo",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Usuario Ingreso",
+              "displayName": "Usuario Ingreso",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Reviewed",
+              "displayName": "Reviewed",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Fecha de Vencimiento",
+              "displayName": "Fecha de Vencimiento",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Forma de pago",
+              "displayName": "Forma de pago",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Fecha de ingreso de pago",
+              "displayName": "Fecha de ingreso de pago",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Envio comprobante s/n",
+              "displayName": "Envio comprobante s/n",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Uli/Irina",
+              "displayName": "Uli/Irina",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "fecha de envio compronante",
+              "displayName": "fecha de envio compronante",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "link comprobante",
+              "displayName": "link comprobante",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {
+          "cellFormat": "USER_ENTERED"
+        }
+      },
+      "id": "edfc4741-c802-474f-80d1-5d8801bf8b08",
+      "name": "📊 Guardar en Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "position": [
+        1136,
+        -1920
+      ],
+      "typeVersion": 4.5,
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('📱 Telegram Trigger').item.json.message.chat.id }}",
+        "text": "=✅ *Gasto registrado exitosamente*\n\n📅 Fecha: {{ $json['Fecha de ingreso'] }}\n🏪 Comercio: {{ $('🔧 Parsear JSON').item.json.servicio_comercio }}\n📝 Concepto: {{ $('🔧 Parsear JSON').item.json.concepto }}\n💰 Importe: ${{ $('🔧 Parsear JSON').item.json.importe }}\n🏷️ Categoría: {{ $('🔧 Parsear JSON').item.json.categoria }}\n🔖 ID: {{ $('🔧 Parsear JSON').item.json.id_transaccion }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "4f60923c-1695-481e-abb6-5ccee66fc89d",
+      "name": "✅ Confirmar Registro",
+      "type": "n8n-nodes-base.telegram",
+      "position": [
+        1360,
+        -1920
+      ],
+      "typeVersion": 1.2
+    },
+    {
+      "parameters": {
+        "content": "## ⚠️ Manejo de Errores",
+        "height": 80,
+        "width": 200,
+        "color": 2
+      },
+      "id": "7c8f7c0a-a76d-4f10-97c9-b804cd49939e",
+      "name": "Sticky Note - Error",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        1008,
+        -1584
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "merge-text",
+              "name": "text",
+              "type": "string",
+              "value": "={{ $json.text || ($('📖 Extraer Texto PDF').isExecuted ? $('📖 Extraer Texto PDF').first().json.text : '') || ($('🗣️ Transcribir Audio').isExecuted ? $('🗣️ Transcribir Audio').first().json.text : '') || ($('Extract text').isExecuted ? $('Extract text').first().json.pages[0].markdown : '') || ($('📝 Preparar Texto').isExecuted ? $('📝 Preparar Texto').first().json.texto_gasto : '') }}"
+            },
+            {
+              "id": "drive-link",
+              "name": "drive_link",
+              "type": "string",
+              "value": "={{ ($('📤 Subir PDF a Drive').isExecuted ? $('📤 Subir PDF a Drive').first().json.webViewLink : '') || ($('📤 Subir Imagen a Drive').isExecuted ? $('📤 Subir Imagen a Drive').first().json.webViewLink : '') || ($('Extract text').isExecuted ? $('📤 Subir Imagen a Drive').first().json.webViewLink : '') }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "9ebb31ad-9607-42b4-a21d-d3d070f60e17",
+      "name": "🔗 Consolidar Datos",
+      "type": "n8n-nodes-base.set",
+      "position": [
+        -800,
+        -1776
+      ],
+      "typeVersion": 3.4
+    },
+    {
+      "parameters": {
+        "content": "🔧 DIAGNÓSTICO: Nodo ¿Es Nuevo?\n\nProblema: La verificación de duplicados no funciona correctamente\n\nSolución aplicada:\n- Cambio de typeValidation a 'loose'\n- Nueva expresión: !$json.id_transaccion\n- Si NO hay id_transaccion → es nuevo (TRUE)\n- Si hay id_transaccion → es duplicado (FALSE)"
+      },
+      "id": "52401c96-7d1c-4f73-b7e5-f503591b5ad3",
+      "name": "Sticky Note - Gon",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1936,
+        -2352
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $json.id }}",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        -1248,
+        -1872
+      ],
+      "id": "5877e9d9-278f-4f9f-8407-656a892210f0",
+      "name": "Download file"
+    },
+    {
+      "parameters": {
+        "documentType": "image_url",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.mistralAi",
+      "typeVersion": 1,
+      "position": [
+        -1024,
+        -1872
+      ],
+      "id": "e231fe6d-2fab-4f04-accb-809b84287f90",
+      "name": "Extract text"
+    },
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "id": "543efdfe-a932-497a-9435-b617fe984888",
+      "name": "📱 Telegram Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "position": [
+        -2816,
+        -1008
+      ],
+      "typeVersion": 1.1
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT estado, facturas_pendientes, facturas_seleccionadas FROM acme_sesiones WHERE chat_id = {{ $('📱 Telegram Trigger').item.json.message.chat.id }} AND estado != 'idle' LIMIT 1",
+        "options": {}
+      },
+      "id": "e36a87f1-4eb5-4df8-b76f-2c99c3d0f404",
+      "name": "🔎 Verificar Sesion",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        -2592,
+        -1008
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "cond-cancelar",
+                    "leftValue": "={{ $('📱 Telegram Trigger').item.json.message?.text?.toLowerCase().trim() ?? '' }}",
+                    "rightValue": "cancelar",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "cancelar"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "cond-start",
+                    "leftValue": "={{ $('📱 Telegram Trigger').item.json.message?.text ?? '' }}",
+                    "rightValue": "/start",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "/start"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "cond-revision",
+                    "leftValue": "={{ $('📱 Telegram Trigger').item.json.message?.text ?? '' }}",
+                    "rightValue": "/revision",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "=/revision"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "cond-mediopago",
+                    "leftValue": "={{ $('📱 Telegram Trigger').item.json.message?.text ?? '' }}",
+                    "rightValue": "/mediopago",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "/mediopago"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "cond-comprobante-cmd",
+                    "leftValue": "={{ $('📱 Telegram Trigger').item.json.message?.text ?? '' }}",
+                    "rightValue": "/comprobante",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "/comprobante"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "cond-sesion-rev",
+                    "leftValue": "={{ $('🔎 Verificar Sesion').first().json.estado ?? '' }}",
+                    "rightValue": "revision",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Sesion Revision"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "cond-sesion-mp",
+                    "leftValue": "={{ $('🔎 Verificar Sesion').first().json.estado ?? '' }}",
+                    "rightValue": "mediopago",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Sesion MedioPago"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "cond-sesion-comp",
+                    "leftValue": "={{ $('🔎 Verificar Sesion').first().json.estado ?? '' }}",
+                    "rightValue": "comprobante",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Sesion Comprobante"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "id": "16591df9-04e1-44a2-b2e5-cef4b74a3a2e",
+      "name": "Router Principal",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        -2368,
+        -1120
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO acme_sesiones (chat_id, estado, updated_at) VALUES ({{ $('📱 Telegram Trigger').item.json.message.chat.id }}, 'revision', NOW()) ON CONFLICT (chat_id) DO UPDATE SET estado = 'revision', updated_at = NOW();",
+        "options": {}
+      },
+      "id": "1c0e6ca9-bace-448f-9efa-74fbaf95289a",
+      "name": "Iniciar Sesion Revision",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        -2144,
+        -1296
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id_transaccion, servicio_comercio, concepto, importe, fecha_fc, categoria FROM acme_registros WHERE estado = 'Pendiente' ORDER BY fecha_creacion_registro DESC LIMIT 20",
+        "options": {}
+      },
+      "id": "5a6f354e-9d8e-480a-89c0-445cfe6d5d7b",
+      "name": "Consultar Pendientes",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        -1920,
+        -1296
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst chatId = $('📱 Telegram Trigger').item.json.message.chat.id;\n\n// Helper para escapear caracteres HTML en datos dinámicos\nconst esc = (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\n\nif (!items.length || !items[0].json.id_transaccion) {\n  return [{ json: { message: '✅ No hay facturas pendientes de revision.', ids_json: '[]', has_items: false, chat_id: chatId } }];\n}\n\nlet msg = '📋 <b>Facturas pendientes de revision:</b>\\n\\n';\nconst ids = [];\n\nitems.forEach((item, i) => {\n  const d = item.json;\n  ids.push(d.id_transaccion);\n  const comercio = esc(d.servicio_comercio) || 'Sin descripción';\n  const concepto = esc(d.concepto) || '-';\n  const importe = d.importe || '-';\n  const fecha = d.fecha_fc || '-';\n  const categoria = esc(d.categoria) || '-';\n\n  msg += `${i + 1}. <b>${comercio}</b>\\n`;\n  msg += `   ${concepto}\\n`;\n  msg += `   $${importe} | ${fecha}\\n`;\n  msg += `   ${categoria} | ID: ${d.id_transaccion}\\n\\n`;\n});\n\nmsg += '---\\n';\nmsg += 'Envia los numeros separados por coma (ej: <b>1,3,5</b>)\\n';\nmsg += 'Escribi <b>todos</b> para aprobar todas\\n';\nmsg += 'Escribi <b>cancelar</b> para salir';\n\nreturn [{ json: { message: msg, ids_json: JSON.stringify(ids), has_items: true, chat_id: chatId } }];"
+      },
+      "id": "efc15a22-f109-4fc5-956d-c6678510371a",
+      "name": "Formatear Lista Pendientes",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1696,
+        -1296
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=UPDATE acme_sesiones SET facturas_pendientes = '{{ $json.ids_json }}'::jsonb, updated_at = NOW() WHERE chat_id = {{ $json.chat_id }}",
+        "options": {}
+      },
+      "id": "a0fc3145-e1dc-4bf6-adc9-adecdeac21d1",
+      "name": "Guardar IDs en Sesion",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        -1472,
+        -1296
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Formatear Lista Pendientes').item.json.chat_id }}",
+        "text": "={{ $('Formatear Lista Pendientes').item.json.message }}",
+        "additionalFields": {
+          "parse_mode": "HTML"
+        }
+      },
+      "id": "26bd7e97-e11e-468b-9a27-6aed3b6b8daa",
+      "name": "Enviar Lista Revision",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -1248,
+        -1296
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const userText = ($('📱 Telegram Trigger').item.json.message?.text ?? '').trim().toLowerCase();\nconst sesionData = $('🔎 Verificar Sesion').first().json;\nconst chatId = $('📱 Telegram Trigger').item.json.message.chat.id;\nconst userName = `${$('📱 Telegram Trigger').item.json.message.from.first_name} ${$('📱 Telegram Trigger').item.json.message.from.last_name || ''}`.trim();\n\nif (userText === 'cancelar') {\n  return [{ json: { action: 'cancelar', chat_id: chatId, message: 'Revision cancelada.', ids_to_update: [] } }];\n}\n\nconst allIds = sesionData.facturas_pendientes || [];\n\nif (!allIds.length) {\n  return [{ json: { action: 'error', chat_id: chatId, message: 'No hay facturas en la sesion. Escribi /revision para comenzar de nuevo.', ids_to_update: [] } }];\n}\n\nlet selectedIds = [];\n\nif (userText === 'todos' || userText === 'todas') {\n  selectedIds = allIds;\n} else {\n  const nums = userText.match(/\\d+/g);\n  if (!nums) {\n    return [{ json: { action: 'error', chat_id: chatId, message: 'No entendi tu seleccion. Envia numeros separados por coma (ej: 1,3,5), todos o cancelar.', ids_to_update: [] } }];\n  }\n  for (const num of nums) {\n    const idx = parseInt(num) - 1;\n    if (idx >= 0 && idx < allIds.length) {\n      selectedIds.push(allIds[idx]);\n    }\n  }\n}\n\nif (!selectedIds.length) {\n  return [{ json: { action: 'error', chat_id: chatId, message: 'Ningun numero valido. Intenta de nuevo.', ids_to_update: [] } }];\n}\n\nreturn [{ json: { action: 'update', chat_id: chatId, ids_to_update: selectedIds, ids_sql: selectedIds.map(id => `'${id}'`).join(','), count: selectedIds.length, user_name: userName, message: `${selectedIds.length} factura(s) marcadas como revisadas por ${userName}.` } }];"
+      },
+      "id": "6b068726-6e49-4aa3-93f1-3e3d1549b392",
+      "name": "Procesar Respuesta Revision",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2144,
+        -912
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "cond-update",
+              "leftValue": "={{ $json.action }}",
+              "rightValue": "update",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "cfd45e08-ee26-4b17-9b4a-459f57b6b8c2",
+      "name": "IF Accion Revision",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -1920,
+        -912
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=UPDATE acme_registros SET estado = 'Revisada' WHERE id_transaccion IN ({{ $('Procesar Respuesta Revision').first().json.ids_sql }})",
+        "options": {}
+      },
+      "id": "266ae697-c7a4-4bf1-94b2-7eeadcd8eb55",
+      "name": "Actualizar Estado DB",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        -1696,
+        -1104
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const idsToUpdate = $('Procesar Respuesta Revision').first().json.ids_to_update;\nconst results = [];\nfor (const id of idsToUpdate) {\n  results.push({ json: { 'ID DE TRANSACCION': id, 'Reviewed': 'revisada', 'ESTADO': 'Revisada' } });\n}\nreturn results;"
+      },
+      "id": "edb3ecdf-849d-4c4a-b379-93611bbcc593",
+      "name": "Preparar Updates Sheets",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1472,
+        -1104
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "<GOOGLE_RESOURCE_ID>",
+          "mode": "list",
+          "cachedResultName": "<redacted>"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "list",
+          "value": 2068031974,
+          "cachedResultName": "<redacted>"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Reviewed": "={{ $json['Reviewed'] }}",
+            "ESTADO": "={{ $json['ESTADO'] }}",
+            "ID DE TRANSACCIÓN": "={{ $json['ID DE TRANSACCION'] }}"
+          },
+          "matchingColumns": [
+            "ID DE TRANSACCIÓN"
+          ],
+          "schema": [
+            {
+              "id": "Fecha de ingreso",
+              "displayName": "Fecha de ingreso",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "SERVICIO / COMERCIO",
+              "displayName": "SERVICIO / COMERCIO",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "CONCEPTO",
+              "displayName": "CONCEPTO",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "IMPORTE",
+              "displayName": "IMPORTE",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "ESTADO",
+              "displayName": "ESTADO",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "CATEGORÍA",
+              "displayName": "CATEGORÍA",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "ID DE TRANSACCIÓN",
+              "displayName": "ID DE TRANSACCIÓN",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "TIPO DE GASTO",
+              "displayName": "TIPO DE GASTO",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Link de archivo",
+              "displayName": "Link de archivo",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Usuario Ingreso",
+              "displayName": "Usuario Ingreso",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Reviewed",
+              "displayName": "Reviewed",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Fecha de Vencimiento",
+              "displayName": "Fecha de Vencimiento",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Forma de pago",
+              "displayName": "Forma de pago",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Fecha de ingreso de pago",
+              "displayName": "Fecha de ingreso de pago",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Envio comprobante s/n",
+              "displayName": "Envio comprobante s/n",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Uli/Irina",
+              "displayName": "Uli/Irina",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "fecha de envio compronante",
+              "displayName": "fecha de envio compronante",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "link comprobante",
+              "displayName": "link comprobante",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {
+          "cellFormat": "USER_ENTERED"
+        }
+      },
+      "id": "4ef353ad-1bac-45f6-b827-792de47e4d51",
+      "name": "Actualizar Sheets Revision",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        -1248,
+        -1104
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=UPDATE acme_sesiones SET estado = 'idle', facturas_pendientes = NULL, updated_at = NOW() WHERE chat_id = {{ $('📱 Telegram Trigger').item.json.message.chat.id }}",
+        "options": {}
+      },
+      "id": "5aadd738-2736-4cb1-b23d-1b228c5155c1",
+      "name": "Limpiar Sesion OK",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        -1024,
+        -1104
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('📱 Telegram Trigger').item.json.message.chat.id }}",
+        "text": "={{ $('Procesar Respuesta Revision').item.json.message }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "aed4df3e-85a4-48ea-8aa7-24496d74343b",
+      "name": "Confirmar Revision TG",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -800,
+        -1104
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chat_id }}",
+        "text": "={{ $json.message }}",
+        "additionalFields": {}
+      },
+      "id": "42133c61-7420-46ef-a988-1e7662e7672f",
+      "name": "Msg Cancelar Error",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -1696,
+        -912
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Modulo de Revision\n### Comando /revision\n\nFlujo:\n1. Usuario envia /revision\n2. Bot muestra facturas pendientes\n3. Usuario selecciona numeros o todos\n4. Actualiza DB (estado) + Sheets (Reviewed)\n5. Limpia sesion",
+        "height": 280,
+        "width": 400,
+        "color": 6
+      },
+      "id": "be25ec9d-ea2c-4e3a-a306-e97a66f8da23",
+      "name": "Sticky Note - Revision",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -2864,
+        -2016
+      ]
+    },
+    {
+      "parameters": {
+        "content": "ARMAR DEBUG DE BBDD",
+        "height": 240,
+        "width": 544
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        176,
+        -1072
+      ],
+      "id": "c80500fd-add1-4a32-930f-20e63722c4b4",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        -2144,
+        -1488
+      ],
+      "id": "c53c2cdc-d995-4a0f-b57e-baf727ad9d30",
+      "name": "No Operation, do nothing"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('📱 Telegram Trigger').item.json.message.chat.id }}",
+        "text": "⚠️ No pude procesar tu comprobante. Intentá de nuevo en unos minutos.\n\nSi el problema persiste, enviá el gasto como texto.",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        16,
+        -592
+      ],
+      "id": "76b781ee-caf9-4c31-a176-807f5bb20126",
+      "name": "⚠️ Error LLM → Usuario"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO acme_errors (\n    chat_id, user_name, nodo_origen, tipo_error, \n    error_message, tipo_input, raw_input\n) VALUES (\n    {{ $('📱 Telegram Trigger').item.json.message.chat.id }},\n    '{{ $('📱 Telegram Trigger').item.json.message.from.first_name }}',\n    'Extraer Datos GPT-4',\n    'llm_failure',\n    '{{ ($json.error?.message || $json.errorMessage || \"Error desconocido\").substring(0, 500) }}',\n    '{{ $('🔗 Consolidar Datos').item.json.drive_link ? \"archivo\" : \"texto\" }}',\n    LEFT('{{ ($('🔗 Consolidar Datos').item.json.text || \"Sin contenido\").substring(0, 500) }}', 2000)\n)",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -224,
+        -592
+      ],
+      "id": "f3a7cbf4-1bd0-433a-ac7e-0ea5b27ea079",
+      "name": "📝 Log Error LLM"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "check-parse",
+              "leftValue": "={{ $json.parse_failed }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "notTrue"
+              }
+            },
+            {
+              "id": "1230a322-e0d7-451d-b50e-52c6e68516cd",
+              "leftValue": "={{ $json.parse_failed }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {
+          "looseTypeValidation": false
+        }
+      },
+      "id": "58a6ef85-bf88-4533-ad8d-c699da7032be",
+      "name": "❓ Parse OK?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        16,
+        -1824
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO acme_errors (\n    chat_id, user_name, nodo_origen, tipo_error,\n    error_message, raw_input\n) VALUES (\n    {{ $('📱 Telegram Trigger').item.json.message.chat.id }},\n    '{{ $('📱 Telegram Trigger').item.json.message.from.first_name }}',\n    'Parsear JSON',\n    'parse_failure',\n    '{{ $json.error || \"Parse failed\" }}',\n    LEFT('{{ ($json.raw_content || \"\").substring(0, 500) }}', 2000)\n)",
+        "options": {}
+      },
+      "id": "81c9b14d-d819-4cb3-a763-93adc947c7c4",
+      "name": "📝 Log Error Parse",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        240,
+        -1728
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('📱 Telegram Trigger').item.json.message.chat.id }}",
+        "text": "⚠️ No pude leer los datos del comprobante.\n\nPodés:\n• Reenviarlo con mejor calidad\n• Escribir manualmente (ej: \"Uber $2500 transporte\")",
+        "additionalFields": {}
+      },
+      "id": "08d77ada-a3d1-45a5-8f94-0e1b4760f71c",
+      "name": "⚠️ Error Parse → Usuario",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        464,
+        -1728
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO acme_errors (\n    chat_id, user_name, nodo_origen, tipo_error,\n    error_message, extracted_json\n) VALUES (\n    {{ $('📱 Telegram Trigger').item.json.message.chat.id }},\n    '{{ $('📱 Telegram Trigger').item.json.message.from.first_name }}',\n    'Insertar en DB',\n    'db_failure',\n    '{{ ($json.error?.message || $json.errorMessage || \"Error DB\").substring(0, 500) }}',\n    '{{ JSON.stringify($('🔧 Parsear JSON').item.json).substring(0, 2000) }}'::jsonb\n)",
+        "options": {}
+      },
+      "id": "92c3dd72-4e41-4bc6-8c94-e7785723a061",
+      "name": "📝 Log Error DB",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1136,
+        -2112
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('📱 Telegram Trigger').item.json.message.chat.id }}",
+        "text": "⚠️ Se procesó tu comprobante pero hubo un error al guardarlo.\n\nYa lo registré para revisión manual.",
+        "additionalFields": {}
+      },
+      "id": "530c5c80-0fa6-4eee-af62-fde9694d8b75",
+      "name": "⚠️ Error DB → Usuario",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1360,
+        -2112
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('📱 Telegram Trigger').item.json.message.chat.id }}",
+        "text": "=Operación cancelada",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "31dea0e1-c3a2-46c5-9b8a-201009e5fa27",
+      "name": "Confirmar Revision TG1",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -1920,
+        -1488
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id_transaccion, servicio_comercio, concepto, importe, fecha_fc, categoria \nFROM acme_registros \nWHERE estado = 'Revisada' \n  AND (forma_de_pago IS NULL OR forma_de_pago = '')\nORDER BY fecha_creacion_registro DESC \nLIMIT 20",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -1920,
+        -720
+      ],
+      "id": "e50ddd3a-e4e4-4736-b20d-e6246dcc909e",
+      "name": "Consultar sin Medio de Pago",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO acme_sesiones (chat_id, estado, updated_at) VALUES ({{ $('📱 Telegram Trigger').item.json.message.chat.id }}, 'mediopago', NOW()) ON CONFLICT (chat_id) DO UPDATE SET estado = 'mediopago', updated_at = NOW();",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -2144,
+        -720
+      ],
+      "id": "3f834c82-7d30-40cd-840c-076bb54563c4",
+      "name": "Iniciar Sesion MP"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst chatId = $('📱 Telegram Trigger').item.json.message.chat.id;\n\nconst esc = (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\n\nif (!items.length || !items[0].json.id_transaccion) {\n  return [{ \n    json: { \n      message: '✅ No hay facturas pendientes de asignar medio de pago.', \n      ids_json: '[]', \n      has_items: false, \n      chat_id: chatId \n    } \n  }];\n}\n\nlet msg = '💳 <b>Asignar Medio de Pago</b>\\n\\n';\nmsg += '📋 <b>Facturas disponibles:</b>\\n\\n';\n\nconst ids = [];\n\nitems.forEach((item, i) => {\n  const d = item.json;\n  ids.push(d.id_transaccion);\n  const comercio = esc(d.servicio_comercio) || 'Sin descripción';\n  const concepto = esc(d.concepto) || '-';\n  const importe = d.importe || '-';\n  const fecha = d.fecha_fc || '-';\n  const categoria = esc(d.categoria) || '-';\n\n  msg += `${i + 1}. <b>${comercio}</b>\\n`;\n  msg += `   ${concepto}\\n`;\n  msg += `   💰 $${importe} | 📅 ${fecha}\\n`;\n  msg += `   🏷️ ${categoria} | ID: <code>${d.id_transaccion}</code>\\n\\n`;\n});\n\nmsg += '---\\n';\nmsg += '✏️ <b>Seleccioná las facturas y medio de pago:</b>\\n\\n';\nmsg += '📌 <b>Formato:</b> <code>números</code> + <code>medio de pago</code>\\n\\n';\nmsg += '💳 <b>Medios disponibles:</b>\\n';\nmsg += '• 💵 efectivo\\n';\nmsg += '• 🏦 transferencia\\n';\nmsg += '• 💳 débito\\n';\nmsg += '• 💳 crédito\\n';\nmsg += '• 💳 tarjeta de crédito\\n';\nmsg += '• 📝 cheque\\n';\nmsg += '• 📝🏦 cheque y transferencia\\n';\nmsg += '• 💵📝 efectivo y cheque\\n\\n';\nmsg += '<b>Ejemplos:</b>\\n';\nmsg += '<code>1,3,5 efectivo</code>\\n';\nmsg += '<code>todas transferencia</code>\\n';\nmsg += '<code>2 crédito</code>\\n';\nmsg += '<code>1,2 efectivo y cheque</code>\\n\\n';\nmsg += '❌ Escribi <b>cancelar</b> para salir';\n\nreturn [{ \n  json: { \n    message: msg, \n    ids_json: JSON.stringify(ids), \n    has_items: true, \n    chat_id: chatId \n  } \n}];"
+      },
+      "id": "6a0f14b4-39c3-42e8-8db4-cbd6229916c4",
+      "name": "Formatear Lista Pendientes1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1696,
+        -720
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=UPDATE acme_sesiones SET facturas_pendientes = '{{ $json.ids_json }}'::jsonb, updated_at = NOW() WHERE chat_id = {{ $json.chat_id }}",
+        "options": {}
+      },
+      "id": "08603a60-5788-4f1d-b2fc-d08b219b14cd",
+      "name": "Guardar IDs MP",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -1472,
+        -720
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Formatear Lista Pendientes1').item.json.chat_id }}",
+        "text": "={{ $('Formatear Lista Pendientes1').item.json.message }}",
+        "additionalFields": {
+          "parse_mode": "HTML"
+        }
+      },
+      "id": "2ab279fa-9aae-4ece-8cc4-bd48f9141995",
+      "name": "Enviar Lista MP",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -1248,
+        -720
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "version": 3,
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "85c89195-ba26-400c-8597-ccacd1b20421",
+              "leftValue": "=={{ $('💾 Insertar en DB').item.json.id_transaccion }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            },
+            {
+              "id": "176d1ba5-58d9-402a-83c4-4448a16dccf2",
+              "leftValue": "",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        912,
+        -2016
+      ],
+      "id": "33778254-93be-4410-91f5-320a6e86b975",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=UPDATE acme_sesiones SET estado = 'idle', facturas_pendientes = NULL, facturas_seleccionadas = NULL, updated_at = NOW() WHERE chat_id = {{ $('📱 Telegram Trigger').item.json.message.chat.id }}",
+        "options": {}
+      },
+      "id": "5a50c675-3ebe-46d9-8bb2-a0ed39d732ea",
+      "name": "Limpiar Sesion Generico",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -1856,
+        -1568
+      ]
+    },
+    {
+      "parameters": {
+        "content": "ULTIMO REVIEW: 24/01\n\n\nLogs\nProblem in node '📊 Guardar en Sheets'\nNode '📤 Subir PDF a Drive' hasn't been executed\n\nSHEET MANDA ARCHIVO A PDF O IMG PERO HAY QUE VER COMO HACERLO EN CONSOLIDAR DATOS O QUE CREE ESTE \nARCHIVO PARA TEXTO TMB (VER MAKE ORIGINAL)\n\n\n26/01\nHACER UN RECEIPT PARA SUBIR IMAGEN A GOOGLE DRIVE (HTTP RECEIPT)\n\n",
+        "height": 784,
+        "width": 992
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        272,
+        -736
+      ],
+      "id": "838c4be3-fb5d-4fc2-b3f7-4e337f2462cf",
+      "name": "Sticky Note3"
+    },
+    {
+      "parameters": {
+        "jsCode": "const userText = ($('📱 Telegram Trigger').item.json.message?.text ?? '').trim().toLowerCase();\nconst sesionData = $('🔎 Verificar Sesion').first().json;\nconst chatId = $('📱 Telegram Trigger').item.json.message.chat.id;\n\nif (userText === 'cancelar') {\n  return [{ json: { action: 'cancelar', chat_id: chatId, message: '❌ Asignación de medio de pago cancelada.' } }];\n}\n\nconst mediosMap = {\n  'efectivo': 'Efectivo',\n  'transferencia': 'Transferencia',\n  'débito': 'Débito',\n  'debito': 'Débito',\n  'crédito': 'Crédito',\n  'credito': 'Crédito',\n  'tarjeta de crédito': 'Tarjeta de Crédito',\n  'tarjeta de credito': 'Tarjeta de Crédito',\n  'cheque': 'Cheque',\n  'cheque y transferencia': 'Cheque y Transferencia',\n  'efectivo y cheque': 'Efectivo y Cheque'\n};\n\nconst allIds = sesionData.facturas_pendientes || [];\nif (!allIds.length) {\n  return [{ json: { action: 'error', chat_id: chatId, message: '⚠️ No hay facturas en la sesión. Escribí /mediopago para comenzar de nuevo.' } }];\n}\n\nlet selectedIds = [];\nlet medioPago = '';\n\nconst mediosCompuestos = Object.keys(mediosMap).filter(m => m.includes(' y ')).sort((a, b) => b.length - a.length);\nlet textoRestante = userText;\nlet medioEncontrado = false;\n\nfor (const mc of mediosCompuestos) {\n  if (userText.includes(mc)) {\n    medioPago = mediosMap[mc];\n    textoRestante = userText.replace(mc, '').trim();\n    medioEncontrado = true;\n    break;\n  }\n}\n\nif (!medioEncontrado) {\n  const mediosSimples = Object.keys(mediosMap).filter(m => !m.includes(' y ')).sort((a, b) => b.length - a.length);\n  for (const ms of mediosSimples) {\n    if (userText.endsWith(ms) || userText.includes(' ' + ms)) {\n      medioPago = mediosMap[ms];\n      const escaped = ms.replace(/[.*+?^${}()|[\\\\]\\\\]/g, '\\\\$&');\n      textoRestante = userText.replace(new RegExp(escaped + '$'), '').trim();\n      medioEncontrado = true;\n      break;\n    }\n  }\n}\n\nif (!medioEncontrado) {\n  return [{ json: { \n    action: 'error', \n    chat_id: chatId, \n    message: '⚠️ No reconocí el medio de pago.\\n\\n💳 *Medios válidos:*\\n• efectivo\\n• transferencia\\n• débito\\n• crédito\\n• tarjeta de crédito\\n• cheque\\n• cheque y transferencia\\n• efectivo y cheque\\n\\n📌 *Formato:* `1,3 efectivo`' \n  } }];\n}\n\nconst parteNums = textoRestante.replace(/,/g, ' ').trim();\n\nif (parteNums === 'todos' || parteNums === 'todas') {\n  selectedIds = [...allIds];\n} else {\n  const nums = parteNums.match(/\\d+/g);\n  if (!nums || nums.length === 0) {\n    return [{ json: { action: 'error', chat_id: chatId, message: '⚠️ No entendí tu selección.\\n\\n📌 *Formato:* `números` + `medio de pago`\\n*Ejemplos:* `1,3,5 efectivo` o `todas transferencia`' } }];\n  }\n  for (const num of nums) {\n    const idx = parseInt(num) - 1;\n    if (idx >= 0 && idx < allIds.length) {\n      selectedIds.push(allIds[idx]);\n    }\n  }\n}\n\nif (!selectedIds.length) {\n  return [{ json: { action: 'error', chat_id: chatId, message: '⚠️ Ningún número válido. Los números deben corresponder a la lista mostrada.' } }];\n}\n\nselectedIds = [...new Set(selectedIds)];\n\nreturn [{ json: { \n  action: 'update', \n  chat_id: chatId, \n  medio_pago: medioPago,\n  ids_to_update: selectedIds, \n  ids_sql: selectedIds.map(id => `'${id}'`).join(','), \n  count: selectedIds.length, \n  message: `✅ ${selectedIds.length} factura(s) → *${medioPago}*` \n} }];"
+      },
+      "id": "011b218a-630b-4a0e-9aee-7b24ade69ac9",
+      "name": "Procesar Seleccion MP1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2144,
+        -336
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "cond-mp-update",
+              "leftValue": "={{ $json.action }}",
+              "rightValue": "update",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "5744a210-c6e9-4658-a16e-109e5f8d47f4",
+      "name": "IF Validacion MP1",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -1920,
+        -336
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chat_id }}",
+        "text": "={{ $json.message }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "31eaf653-095f-4eaa-bfb3-85d747826c66",
+      "name": "Msg Error MP1",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -1696,
+        -336
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE acme_registros \nSET forma_de_pago = '{{ $('Procesar Seleccion MP1').item.json.medio_pago }}',\n    estado = 'Por Pagar',\n    updated_at = NOW()\nWHERE id_transaccion IN ({{ $('Procesar Seleccion MP1').item.json.ids_sql }})",
+        "options": {}
+      },
+      "id": "4568d470-7a89-4e6d-be4e-8d9cb72b1688",
+      "name": "Actualizar Estado DB2",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        -1696,
+        -528
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const idsToUpdate = $('Procesar Seleccion MP1').item.json.ids_to_update;\nconst medioPago = $('Procesar Seleccion MP1').item.json.medio_pago;\nconst results = [];\n\nfor (const id of idsToUpdate) {\n  results.push({ \n    json: { \n      'ID DE TRANSACCION': id, \n      'Forma de pago': medioPago,\n      'ESTADO': 'Por Pagar' \n    } \n  });\n}\n\nreturn results;"
+      },
+      "id": "5e0014aa-2ea5-4c58-9c6c-23c821619a98",
+      "name": "Preparar Updates Sheets2",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1472,
+        -528
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "<GOOGLE_RESOURCE_ID>",
+          "mode": "list",
+          "cachedResultName": "<redacted>"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "list",
+          "value": 2068031974,
+          "cachedResultName": "<redacted>"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Reviewed": "={{ $json['Reviewed'] }}",
+            "ESTADO": "={{ $json['ESTADO'] }}",
+            "ID DE TRANSACCIÓN": "={{ $json['ID DE TRANSACCION'] }}",
+            "Forma de pago": "={{ $json['Forma de pago'] }}"
+          },
+          "matchingColumns": [
+            "ID DE TRANSACCIÓN"
+          ],
+          "schema": [
+            {
+              "id": "Fecha de ingreso",
+              "displayName": "Fecha de ingreso",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "SERVICIO / COMERCIO",
+              "displayName": "SERVICIO / COMERCIO",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "CONCEPTO",
+              "displayName": "CONCEPTO",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "IMPORTE",
+              "displayName": "IMPORTE",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "ESTADO",
+              "displayName": "ESTADO",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "CATEGORÍA",
+              "displayName": "CATEGORÍA",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "ID DE TRANSACCIÓN",
+              "displayName": "ID DE TRANSACCIÓN",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "TIPO DE GASTO",
+              "displayName": "TIPO DE GASTO",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Link de archivo",
+              "displayName": "Link de archivo",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Usuario Ingreso",
+              "displayName": "Usuario Ingreso",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Reviewed",
+              "displayName": "Reviewed",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Fecha de Vencimiento",
+              "displayName": "Fecha de Vencimiento",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Forma de pago",
+              "displayName": "Forma de pago",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Fecha de ingreso de pago",
+              "displayName": "Fecha de ingreso de pago",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Envio comprobante s/n",
+              "displayName": "Envio comprobante s/n",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Uli/Irina",
+              "displayName": "Uli/Irina",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "fecha de envio compronante",
+              "displayName": "fecha de envio compronante",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "link comprobante",
+              "displayName": "link comprobante",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {
+          "cellFormat": "USER_ENTERED"
+        }
+      },
+      "id": "f259d39e-a866-4448-8bb7-ef45f3579e9e",
+      "name": "Actualizar Sheets Revision2",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        -1248,
+        -528
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=UPDATE acme_sesiones SET updated_at = NOW() WHERE chat_id = {{ $('📱 Telegram Trigger').item.json.message.chat.id }}",
+        "options": {}
+      },
+      "id": "d9c6f83d-c764-4a72-b147-5b8e31693fac",
+      "name": "Actualizar Timestamp MP",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        -1024,
+        -528
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('📱 Telegram Trigger').item.json.message.chat.id }}",
+        "text": "={{ $('Procesar Seleccion MP1').item.json.message }}\n\n📋 Podés seguir asignando medios de pago o escribí *cancelar* para salir.",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "0bc439f9-1a48-4b9f-a80d-2c0c0bebd570",
+      "name": "Confirmar Revision TG3",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -800,
+        -528
+      ]
+    },
+    {
+      "parameters": {
+        "content": "##const idsToUpdate = $('Procesar Respuesta Revision').first().json.ids_to_update;\nconst results = [];\nfor (const id of idsToUpdate) {\n  results.push({ json: { 'ID DE TRANSACCION': id, 'Reviewed': 'revisada', 'ESTADO': 'Revisada' } });\n}\nreturn results;"
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1072,
+        -256
+      ],
+      "id": "3ffad89b-2b97-4501-a158-45aa5bf093d9",
+      "name": "Sticky Note4"
+    },
+    {
+      "parameters": {
+        "content": "## 🧾 Módulo Comprobante de Pago\n### Comando /comprobante\n\nFlujo:\n1. /comprobante → lista facturas Por Pagar\n2. Usuario selecciona número\n3. Envía foto/PDF\n4. Sube a Drive + actualiza DB/Sheets\n5. Confirma",
+        "height": 320,
+        "width": 440,
+        "color": 3
+      },
+      "id": "1d3b2bd3-f948-4db3-a44d-9f137e37ba35",
+      "name": "Sticky Note - Comprobante1",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -2896,
+        -128
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO acme_sesiones (chat_id, estado, updated_at) VALUES ({{ $('📱 Telegram Trigger').item.json.message.chat.id }}, 'comprobante', NOW()) ON CONFLICT (chat_id) DO UPDATE SET estado = 'comprobante', updated_at = NOW();",
+        "options": {}
+      },
+      "id": "b62183e1-9a41-405c-bcdf-57cd0156fafe",
+      "name": "Iniciar Sesion Comprobante1",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -2144,
+        -144
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id_transaccion, servicio_comercio, concepto, importe, fecha_fc, categoria, forma_de_pago \nFROM acme_registros \nWHERE estado = 'Por Pagar' \n  AND (link_comprobante_pago IS NULL OR link_comprobante_pago = '')\nORDER BY fecha_creacion_registro DESC \nLIMIT 20",
+        "options": {}
+      },
+      "id": "0a47eb25-cfcf-44ff-8317-e66853f7c570",
+      "name": "Consultar Facturas Por Pagar1",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -1920,
+        -144
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst chatId = $('📱 Telegram Trigger').item.json.message.chat.id;\n\nconst esc = (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\n\nif (!items.length || !items[0].json.id_transaccion) {\n  return [{ \n    json: { \n      message: '✅ No hay facturas pendientes de comprobante de pago.', \n      ids_json: '[]', \n      has_items: false, \n      chat_id: chatId \n    } \n  }];\n}\n\nlet msg = '🧾 <b>Adjuntar Comprobante de Pago</b>\\n\\n';\nmsg += '📋 <b>Facturas disponibles:</b>\\n\\n';\nconst ids = [];\n\nitems.forEach((item, i) => {\n  const d = item.json;\n  ids.push(d.id_transaccion);\n  const comercio = esc(d.servicio_comercio) || 'Sin descripción';\n  const concepto = esc(d.concepto) || '-';\n  const importe = d.importe || '-';\n  const fecha = d.fecha_fc || '-';\n  const formaPago = esc(d.forma_de_pago) || 'Sin medio de pago';\n\n  msg += `${i + 1}. <b>${comercio}</b>\\n`;\n  msg += `   ${concepto}\\n`;\n  msg += `   💰 $${importe} | 📅 ${fecha}\\n`;\n  msg += `   💳 ${formaPago}\\n`;\n  msg += `   🏷️ ID: <code>${d.id_transaccion}</code>\\n\\n`;\n});\n\nmsg += '---\\n';\nmsg += '✏️ <b>Instrucciones:</b>\\n';\nmsg += '1️⃣ Escribi el <b>número</b> de la factura\\n';\nmsg += '2️⃣ Adjuntá el <b>comprobante de pago</b> (foto o PDF)\\n\\n';\nmsg += '<b>Ejemplo:</b> Escribi <code>3</code> y luego enviá la foto del comprobante\\n\\n';\nmsg += '❌ Escribi <b>cancelar</b> para salir';\n\nreturn [{ json: { message: msg, ids_json: JSON.stringify(ids), has_items: true, chat_id: chatId } }];"
+      },
+      "id": "b761373d-bd94-4a34-a754-631ae5b8ac22",
+      "name": "Formatear Lista Facturas1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1696,
+        -144
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=UPDATE acme_sesiones SET facturas_pendientes = '{{ $json.ids_json }}'::jsonb, updated_at = NOW() WHERE chat_id = {{ $json.chat_id }}",
+        "options": {}
+      },
+      "id": "72547c8c-2987-4b16-a52d-92e948be79b0",
+      "name": "Guardar IDs Comprobante1",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -1472,
+        -144
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Formatear Lista Facturas1').item.json.chat_id }}",
+        "text": "={{ $('Formatear Lista Facturas1').item.json.message }}",
+        "additionalFields": {
+          "parse_mode": "HTML"
+        }
+      },
+      "id": "1e5ac87f-eaf4-413a-81b8-f5800c9ccc58",
+      "name": "Enviar Lista Comprobante1",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -1248,
+        -144
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const message = $('📱 Telegram Trigger').item.json.message;\nconst sesionData = $('🔎 Verificar Sesion').first().json;\nconst chatId = message.chat.id;\nconst userName = `${message.from.first_name} ${message.from.last_name || ''}`.trim();\n\nif (message.text && message.text.toLowerCase().trim() === 'cancelar') {\n  return [{ json: { action: 'cancelar', chat_id: chatId, message: '❌ Operación cancelada.' } }];\n}\n\nconst allIds = sesionData.facturas_pendientes || [];\nconst selectedId = sesionData.facturas_seleccionadas;\n\nif (message.photo || message.document) {\n  if (!selectedId) {\n    return [{ json: { action: 'error', chat_id: chatId, message: '⚠️ Primero escribí el número de la factura, luego enviá el comprobante.' } }];\n  }\n  let fileId = null;\n  let fileName = null;\n  let mimeType = null;\n  let isPhoto = false;\n  if (message.photo && message.photo.length > 0) {\n    fileId = message.photo[message.photo.length - 1].file_id;\n    fileName = `comprobante_${Date.now()}.jpg`;\n    mimeType = 'image/jpeg';\n    isPhoto = true;\n  } else if (message.document) {\n    fileId = message.document.file_id;\n    fileName = message.document.file_name || `comprobante_${Date.now()}.pdf`;\n    mimeType = message.document.mime_type;\n  }\n  return [{ json: { action: 'procesar_archivo', chat_id: chatId, file_id: fileId, file_name: fileName, mime_type: mimeType, id_transaccion: selectedId, is_photo: isPhoto } }];\n}\n\nif (message.text) {\n  const num = parseInt(message.text.trim());\n  if (isNaN(num) || num < 1 || num > allIds.length) {\n    return [{ json: { action: 'error', chat_id: chatId, message: `⚠️ Número inválido. Elegí entre 1 y ${allIds.length}, o enviá cancelar.` } }];\n  }\n  return [{ json: { action: 'esperar_archivo', chat_id: chatId, selected_id: allIds[num - 1], selected_index: num, message: `✅ Seleccionaste la factura *${num}*.\n\n📎 Ahora enviá el comprobante de pago (foto o PDF).` } }];\n}\n\nreturn [{ json: { action: 'error', chat_id: chatId, message: '⚠️ Formato no reconocido. Escribí el número de la factura o enviá cancelar.' } }];"
+      },
+      "id": "77514a76-55ef-4449-9262-4eff699f4209",
+      "name": "Procesar Respuesta Comp1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2144,
+        352
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "cond-esperar",
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "esperar_archivo",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "esperar_archivo"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "cond-procesar",
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "procesar_archivo",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "procesar_archivo"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "cond-cancelar",
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "cancelar",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "cancelar"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "id": "fc12a062-cbca-4751-9387-f5c5421707e3",
+      "name": "Switch Accion Comp1",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        -1920,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=UPDATE acme_sesiones \nSET facturas_seleccionadas = to_jsonb('{{ $json.selected_id }}'::text), \n    updated_at = NOW() \nWHERE chat_id = {{ $json.chat_id }}",
+        "options": {}
+      },
+      "id": "43889b6c-1fbd-4981-ba75-b7724faff26a",
+      "name": "Guardar Seleccion Temp1",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -1696,
+        48
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('📱 Telegram Trigger').item.json.message.chat.id }}",
+        "text": "={{ $('Procesar Respuesta Comp1').item.json.message }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "83dc260a-081d-4319-b814-8e3b00ee9421",
+      "name": "Msg Esperar Archivo1",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -1472,
+        48
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chat_id }}",
+        "text": "={{ $json.message }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "bcc0a020-4ccf-4274-bf8d-af62be4358d2",
+      "name": "Msg Error Comp1",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -1696,
+        624
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "fileId": "={{ $('Switch Accion Comp1').item.json.file_id }}",
+        "additionalFields": {}
+      },
+      "id": "b30c0a3e-d60d-414c-9bec-6c4dcfcdb37e",
+      "name": "Descargar Comprobante TG1",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -1696,
+        432
+      ]
+    },
+    {
+      "parameters": {
+        "inputDataFieldName": "=data",
+        "name": "={{ $now.format('yyyy-MM-dd_HHmmss') }}_{{ $('Procesar Respuesta Comp1').item.json.file_name }}",
+        "driveId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "<GOOGLE_RESOURCE_ID>",
+          "mode": "list",
+          "cachedResultName": "<redacted>"
+        },
+        "options": {}
+      },
+      "id": "dd584ee9-ea30-405f-bf05-c6654fc73009",
+      "name": "Subir Comprobante Drive1",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        -1472,
+        432
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=UPDATE acme_registros \nSET link_comprobante_pago = '{{ $('Subir Comprobante Drive1').first().json.webViewLink }}',\n    fecha_ingreso_pago = NOW(),\n    estado = 'Pagado',\n    updated_at = NOW()\nWHERE id_transaccion = '{{ $('Procesar Respuesta Comp1').item.json.id_transaccion }}'",
+        "options": {}
+      },
+      "id": "27f0686e-5b2c-45e7-9665-e38e09f6c296",
+      "name": "Actualizar DB Comprobante1",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -1248,
+        432
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const idTransaccion = $('Procesar Respuesta Comp1').item.json.id_transaccion;\nconst driveLink = $('Subir Comprobante Drive1').first().json.webViewLink || '';\nconst fechaPago = new Date().toLocaleDateString('es-AR');\n\nreturn [{ \n  json: { \n    'ID DE TRANSACCION': idTransaccion,\n    'ESTADO': 'Pagado',\n    'Fecha de ingreso de pago': fechaPago,\n    'link comprobante': driveLink,\n    'Envio comprobante s/n': 'Si'\n  } \n}];"
+      },
+      "id": "f34c62a3-7e0c-48a4-a521-eea8fdd6bd61",
+      "name": "Preparar Update Sheets Comp1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1024,
+        432
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "<GOOGLE_RESOURCE_ID>",
+          "mode": "list",
+          "cachedResultName": "<redacted>"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "list",
+          "value": 2068031974,
+          "cachedResultName": "<redacted>"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "ESTADO": "={{ $json['ESTADO'] }}",
+            "ID DE TRANSACCIÓN": "={{ $json['ID DE TRANSACCION'] }}",
+            "Fecha de ingreso de pago": "={{ $json['Fecha de ingreso de pago'] }}",
+            "link comprobante": "={{ $json['link comprobante'] }}",
+            "Envio comprobante s/n": "={{ $json['Envio comprobante s/n'] }}"
+          },
+          "matchingColumns": [
+            "ID DE TRANSACCIÓN"
+          ],
+          "schema": [
+            {
+              "id": "Fecha de ingreso",
+              "displayName": "Fecha de ingreso",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "SERVICIO / COMERCIO",
+              "displayName": "SERVICIO / COMERCIO",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "CONCEPTO",
+              "displayName": "CONCEPTO",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "IMPORTE",
+              "displayName": "IMPORTE",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "ESTADO",
+              "displayName": "ESTADO",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "CATEGORÍA",
+              "displayName": "CATEGORÍA",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "ID DE TRANSACCIÓN",
+              "displayName": "ID DE TRANSACCIÓN",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "TIPO DE GASTO",
+              "displayName": "TIPO DE GASTO",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Link de archivo",
+              "displayName": "Link de archivo",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Usuario Ingreso",
+              "displayName": "Usuario Ingreso",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Reviewed",
+              "displayName": "Reviewed",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Fecha de Vencimiento",
+              "displayName": "Fecha de Vencimiento",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Forma de pago",
+              "displayName": "Forma de pago",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Fecha de ingreso de pago",
+              "displayName": "Fecha de ingreso de pago",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Envio comprobante s/n",
+              "displayName": "Envio comprobante s/n",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Uli/Irina",
+              "displayName": "Uli/Irina",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "fecha de envio compronante",
+              "displayName": "fecha de envio compronante",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "link comprobante",
+              "displayName": "link comprobante",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {
+          "cellFormat": "USER_ENTERED"
+        }
+      },
+      "id": "7b7a3e06-d8a5-42d5-90c6-c3fa314aa4b5",
+      "name": "Actualizar Sheets Comp1",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        -800,
+        432
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=UPDATE acme_sesiones SET facturas_seleccionadas = NULL, updated_at = NOW() WHERE chat_id = {{ $('📱 Telegram Trigger').item.json.message.chat.id }}",
+        "options": {}
+      },
+      "id": "b47c5e5a-6156-4d50-b0d0-2f19e744b157",
+      "name": "Limpiar Seleccion Comp1",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -512,
+        432
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('📱 Telegram Trigger').item.json.message.chat.id }}",
+        "text": "=✅ *Comprobante de pago registrado*\n\n🧾 Factura ID: `{{ $('Procesar Respuesta Comp1').item.json.id_transaccion }}`\n📅 Fecha de pago: {{ $now.format('dd/MM/yyyy') }}\n☁️ Link: {{ $('Subir Comprobante Drive1').first().json.webViewLink }}\n\n✅ La factura fue marcada como *Pagada*.\n\n📋 Podés seguir con otro comprobante o escribí *cancelar* para salir.",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "f7291efe-5637-43d6-aed3-338e85f5a9f9",
+      "name": "Confirmar Comprobante1",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -224,
+        432
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=UPDATE acme_sesiones SET estado = 'idle', facturas_pendientes = NULL, facturas_seleccionadas = NULL, updated_at = NOW() WHERE chat_id = {{ $json.chat_id }}",
+        "options": {}
+      },
+      "id": "86f2209a-61bc-4b73-9927-13eb8d439785",
+      "name": "Limpiar Sesion Cancel Comp1",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -1696,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('📱 Telegram Trigger').item.json.message.chat.id }}",
+        "text": "={{ $('Procesar Respuesta Comp1').item.json.message }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "4a9e2db0-c84b-4d90-95f2-0208564d97f3",
+      "name": "Msg Cancelar Comp1",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -1472,
+        240
+      ]
+    }
+  ],
+  "connections": {
+    "🔍 Obtener Último ID": {
+      "main": [
+        [
+          {
+            "node": "🔀 Tipo de Mensaje",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔀 Tipo de Mensaje": {
+      "main": [
+        [
+          {
+            "node": "📥 Descargar PDF",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "📥 Descargar Imagen",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "📥 Descargar Audio",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "📝 Preparar Texto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📥 Descargar PDF": {
+      "main": [
+        [
+          {
+            "node": "📤 Subir PDF a Drive",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "📖 Extraer Texto PDF",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📖 Extraer Texto PDF": {
+      "main": [
+        [
+          {
+            "node": "🔗 Consolidar Datos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📥 Descargar Imagen": {
+      "main": [
+        [
+          {
+            "node": "📤 Subir Imagen a Drive",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📤 Subir Imagen a Drive": {
+      "main": [
+        [
+          {
+            "node": "Download file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📥 Descargar Audio": {
+      "main": [
+        [
+          {
+            "node": "🗣️ Transcribir Audio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🗣️ Transcribir Audio": {
+      "main": [
+        [
+          {
+            "node": "🔗 Consolidar Datos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📝 Preparar Texto": {
+      "main": [
+        [
+          {
+            "node": "🔗 Consolidar Datos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔗 Consolidar Datos": {
+      "main": [
+        [
+          {
+            "node": "🧠 Extraer Datos (GPT-4)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🧠 Extraer Datos (GPT-4)": {
+      "main": [
+        [
+          {
+            "node": "🔧 Parsear JSON",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "📝 Log Error LLM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔍 Verificar Duplicado": {
+      "main": [
+        [
+          {
+            "node": "❓ ¿Es Nuevo?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "❓ ¿Es Nuevo?": {
+      "main": [
+        [
+          {
+            "node": "💾 Insertar en DB",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "⚠️ Notificar Duplicado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "💾 Insertar en DB": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📊 Guardar en Sheets": {
+      "main": [
+        [
+          {
+            "node": "✅ Confirmar Registro",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download file": {
+      "main": [
+        [
+          {
+            "node": "Extract text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract text": {
+      "main": [
+        [
+          {
+            "node": "🔗 Consolidar Datos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📱 Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "🔎 Verificar Sesion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔎 Verificar Sesion": {
+      "main": [
+        [
+          {
+            "node": "Router Principal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Iniciar Sesion Revision": {
+      "main": [
+        [
+          {
+            "node": "Consultar Pendientes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Consultar Pendientes": {
+      "main": [
+        [
+          {
+            "node": "Formatear Lista Pendientes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Formatear Lista Pendientes": {
+      "main": [
+        [
+          {
+            "node": "Guardar IDs en Sesion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Guardar IDs en Sesion": {
+      "main": [
+        [
+          {
+            "node": "Enviar Lista Revision",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Procesar Respuesta Revision": {
+      "main": [
+        [
+          {
+            "node": "IF Accion Revision",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Accion Revision": {
+      "main": [
+        [
+          {
+            "node": "Actualizar Estado DB",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Msg Cancelar Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Actualizar Estado DB": {
+      "main": [
+        [
+          {
+            "node": "Preparar Updates Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Updates Sheets": {
+      "main": [
+        [
+          {
+            "node": "Actualizar Sheets Revision",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Actualizar Sheets Revision": {
+      "main": [
+        [
+          {
+            "node": "Limpiar Sesion OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limpiar Sesion OK": {
+      "main": [
+        [
+          {
+            "node": "Confirmar Revision TG",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📝 Log Error LLM": {
+      "main": [
+        [
+          {
+            "node": "⚠️ Error LLM → Usuario",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔧 Parsear JSON": {
+      "main": [
+        [
+          {
+            "node": "❓ Parse OK?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "❓ Parse OK?": {
+      "main": [
+        [
+          {
+            "node": "🔍 Verificar Duplicado",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "📝 Log Error Parse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📝 Log Error Parse": {
+      "main": [
+        [
+          {
+            "node": "⚠️ Error Parse → Usuario",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📝 Log Error DB": {
+      "main": [
+        [
+          {
+            "node": "⚠️ Error DB → Usuario",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Iniciar Sesion MP": {
+      "main": [
+        [
+          {
+            "node": "Consultar sin Medio de Pago",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Consultar sin Medio de Pago": {
+      "main": [
+        [
+          {
+            "node": "Formatear Lista Pendientes1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Formatear Lista Pendientes1": {
+      "main": [
+        [
+          {
+            "node": "Guardar IDs MP",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Guardar IDs MP": {
+      "main": [
+        [
+          {
+            "node": "Enviar Lista MP",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "📊 Guardar en Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "📝 Log Error DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Router Principal": {
+      "main": [
+        [
+          {
+            "node": "No Operation, do nothing",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "👋 Enviar Bienvenida",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Iniciar Sesion Revision",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Iniciar Sesion MP",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Iniciar Sesion Comprobante1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Procesar Respuesta Revision",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Procesar Seleccion MP1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Procesar Respuesta Comp1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "🔍 Obtener Último ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "No Operation, do nothing": {
+      "main": [
+        [
+          {
+            "node": "Limpiar Sesion Generico",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limpiar Sesion Generico": {
+      "main": [
+        [
+          {
+            "node": "Confirmar Revision TG1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Procesar Seleccion MP1": {
+      "main": [
+        [
+          {
+            "node": "IF Validacion MP1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Validacion MP1": {
+      "main": [
+        [
+          {
+            "node": "Actualizar Estado DB2",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Msg Error MP1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Actualizar Estado DB2": {
+      "main": [
+        [
+          {
+            "node": "Preparar Updates Sheets2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Updates Sheets2": {
+      "main": [
+        [
+          {
+            "node": "Actualizar Sheets Revision2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Actualizar Sheets Revision2": {
+      "main": [
+        [
+          {
+            "node": "Actualizar Timestamp MP",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Actualizar Timestamp MP": {
+      "main": [
+        [
+          {
+            "node": "Confirmar Revision TG3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Iniciar Sesion Comprobante1": {
+      "main": [
+        [
+          {
+            "node": "Consultar Facturas Por Pagar1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Consultar Facturas Por Pagar1": {
+      "main": [
+        [
+          {
+            "node": "Formatear Lista Facturas1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Formatear Lista Facturas1": {
+      "main": [
+        [
+          {
+            "node": "Guardar IDs Comprobante1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Guardar IDs Comprobante1": {
+      "main": [
+        [
+          {
+            "node": "Enviar Lista Comprobante1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Procesar Respuesta Comp1": {
+      "main": [
+        [
+          {
+            "node": "Switch Accion Comp1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch Accion Comp1": {
+      "main": [
+        [
+          {
+            "node": "Guardar Seleccion Temp1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Descargar Comprobante TG1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Limpiar Sesion Cancel Comp1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Msg Error Comp1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Guardar Seleccion Temp1": {
+      "main": [
+        [
+          {
+            "node": "Msg Esperar Archivo1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Descargar Comprobante TG1": {
+      "main": [
+        [
+          {
+            "node": "Subir Comprobante Drive1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Subir Comprobante Drive1": {
+      "main": [
+        [
+          {
+            "node": "Actualizar DB Comprobante1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Actualizar DB Comprobante1": {
+      "main": [
+        [
+          {
+            "node": "Preparar Update Sheets Comp1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Update Sheets Comp1": {
+      "main": [
+        [
+          {
+            "node": "Actualizar Sheets Comp1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Actualizar Sheets Comp1": {
+      "main": [
+        [
+          {
+            "node": "Limpiar Seleccion Comp1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limpiar Seleccion Comp1": {
+      "main": [
+        [
+          {
+            "node": "Confirmar Comprobante1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limpiar Sesion Cancel Comp1": {
+      "main": [
+        [
+          {
+            "node": "Msg Cancelar Comp1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false,
+    "errorWorkflow": "Q7Re72V4C7cxIQNR"
+  }
+}

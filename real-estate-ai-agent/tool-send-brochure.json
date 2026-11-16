@@ -1,0 +1,700 @@
+{
+  "name": "Tool: Enviar Brochure (Real Estate)",
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -400,
+        0
+      ],
+      "id": "workflow-trigger-brochure-001",
+      "name": "Execute Workflow Trigger"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "development-b-condition",
+              "leftValue": "={{ $json.proyecto.toLowerCase() }}",
+              "rightValue": "development-b",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -100,
+        -200
+      ],
+      "id": "check-development-b-001",
+      "name": "Is development-b?"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "development-c-condition",
+              "leftValue": "={{ $json.proyecto.toLowerCase() }}",
+              "rightValue": "development-c",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -100,
+        0
+      ],
+      "id": "check-development-c-001",
+      "name": "Is development-c?"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "sanluis-condition",
+              "leftValue": "={{ $json.proyecto.toLowerCase() }}",
+              "rightValue": "development-d",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -100,
+        200
+      ],
+      "id": "check-sanluis-001",
+      "name": "Is development-d?"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "development-a-condition",
+              "leftValue": "={{ $json.proyecto.toLowerCase() }}",
+              "rightValue": "development-a",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -100,
+        400
+      ],
+      "id": "check-development-a-001",
+      "name": "Is development-a?"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.BROCHURE_URL_development-b || 'https://your-storage.com/brochures/development-a.pdf' }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        200,
+        -300
+      ],
+      "id": "download-development-b-001",
+      "name": "Download development-b Brochure"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.BROCHURE_URL_development-c || 'https://your-storage.com/brochures/development-a.pdf' }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        200,
+        -100
+      ],
+      "id": "download-development-c-001",
+      "name": "Download development-c Brochure"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.BROCHURE_URL_DEVELOPMENT_D || 'https://your-storage.com/brochures/development-a.pdf' }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        200,
+        100
+      ],
+      "id": "download-sanluis-001",
+      "name": "Download development-d Brochure"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.BROCHURE_URL_development-a || 'https://your-storage.com/brochures/development-a.pdf' }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        200,
+        300
+      ],
+      "id": "download-development-a-001",
+      "name": "Download development-a Brochure"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Execute Workflow Trigger').item.json.email }}",
+        "subject": "=Tu brochure de Development A 🏠",
+        "emailType": "html",
+        "message": "=<html>\n<body style=\"font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;\">\n  <h2 style=\"color: #2c3e50;\">¡Hola{{ $('Execute Workflow Trigger').item.json.nombre ? ' ' + $('Execute Workflow Trigger').item.json.nombre : '' }}!</h2>\n  \n  <p>Gracias por tu interés en <strong>Development A</strong>.</p>\n  \n  <p>Adjunto encontrarás nuestro brochure completo con toda la información sobre:</p>\n  \n  <ul>\n    <li>📍 Ubicación privilegiada en development-b, Santa Fe</li>\n    <li>🏢 Departamentos de 2, 3 y 4 ambientes</li>\n    <li>🏊 Amenities: Pileta, SUM, gimnasio, seguridad 24hs</li>\n    <li>💰 Opciones de inversión con rentabilidad del 6-8% anual</li>\n    <li>🗓️ Entrega estimada: 2025</li>\n  </ul>\n  \n  <p>Si tenés alguna consulta o querés agendar una visita, no dudes en responder este email o contactarnos.</p>\n  \n  <p style=\"margin-top: 30px;\">¡Saludos cordiales!</p>\n  <p><strong>Equipo de Ventas</strong><br>\n  Development A</p>\n</body>\n</html>",
+        "options": {
+          "appendAttribution": false,
+          "attachmentsUi": {
+            "attachmentsBinary": [
+              {
+                "property": "data"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        450,
+        -300
+      ],
+      "id": "send-email-development-b-001",
+      "name": "Send development-b Email"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Execute Workflow Trigger').item.json.email }}",
+        "subject": "=Tu brochure de Development A 🏭",
+        "emailType": "html",
+        "message": "=<html>\n<body style=\"font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;\">\n  <h2 style=\"color: #2c3e50;\">¡Hola{{ $('Execute Workflow Trigger').item.json.nombre ? ' ' + $('Execute Workflow Trigger').item.json.nombre : '' }}!</h2>\n  \n  <p>Gracias por tu interés en <strong>Development A</strong>.</p>\n  \n  <p>Adjunto encontrarás nuestro brochure completo con toda la información sobre:</p>\n  \n  <ul>\n    <li>📍 Ubicación estratégica en Parque Industrial La Plata</li>\n    <li>🏭 Naves industriales de 500 a 5000 m²</li>\n    <li>⚡ Servicios: Electricidad trifásica, gas industrial, fibra óptica</li>\n    <li>✅ Unidades con entrega inmediata disponibles</li>\n    <li>🚚 Ideal para logística, e-commerce y manufactura</li>\n  </ul>\n  \n  <p>Si tenés alguna consulta o querés coordinar una visita al parque industrial, no dudes en responder este email.</p>\n  \n  <p style=\"margin-top: 30px;\">¡Saludos cordiales!</p>\n  <p><strong>Equipo de Ventas</strong><br>\n  Development A</p>\n</body>\n</html>",
+        "options": {
+          "appendAttribution": false,
+          "attachmentsUi": {
+            "attachmentsBinary": [
+              {
+                "property": "data"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        450,
+        -100
+      ],
+      "id": "send-email-development-c-001",
+      "name": "Send development-c Email"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Execute Workflow Trigger').item.json.email }}",
+        "subject": "=Tu brochure de Development A 🏨",
+        "emailType": "html",
+        "message": "=<html>\n<body style=\"font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;\">\n  <h2 style=\"color: #2c3e50;\">¡Hola{{ $('Execute Workflow Trigger').item.json.nombre ? ' ' + $('Execute Workflow Trigger').item.json.nombre : '' }}!</h2>\n  \n  <p>Gracias por tu interés en <strong>Development A</strong>.</p>\n  \n  <p>Adjunto encontrarás nuestro brochure completo con toda la información sobre:</p>\n  \n  <ul>\n    <li>📍 Ubicación céntrica en development-d Capital</li>\n    <li>🛍️ Locales comerciales de 30 a 200 m²</li>\n    <li>🏨 Hotel 4 estrellas integrado</li>\n    <li>🅿️ Estacionamiento, food court y cine</li>\n    <li>💰 Inversión desde USD 45.000</li>\n    <li>🗓️ Entrega estimada: 2025</li>\n  </ul>\n  \n  <p>Si tenés alguna consulta o querés conocer más sobre las oportunidades de inversión, no dudes en responder este email.</p>\n  \n  <p style=\"margin-top: 30px;\">¡Saludos cordiales!</p>\n  <p><strong>Equipo de Ventas</strong><br>\n  Development A</p>\n</body>\n</html>",
+        "options": {
+          "appendAttribution": false,
+          "attachmentsUi": {
+            "attachmentsBinary": [
+              {
+                "property": "data"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        450,
+        100
+      ],
+      "id": "send-email-sanluis-001",
+      "name": "Send development-d Email"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Execute Workflow Trigger').item.json.email }}",
+        "subject": "=Tu brochure de Development A ❄️",
+        "emailType": "html",
+        "message": "=<html>\n<body style=\"font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;\">\n  <h2 style=\"color: #2c3e50;\">¡Hola{{ $('Execute Workflow Trigger').item.json.nombre ? ' ' + $('Execute Workflow Trigger').item.json.nombre : '' }}!</h2>\n  \n  <p>Gracias por tu interés en <strong>Development A</strong>.</p>\n  \n  <p>Adjunto encontrarás nuestro brochure completo con toda la información sobre:</p>\n  \n  <ul>\n    <li>📍 Ubicación exclusiva en El development-a, Santa Cruz</li>\n    <li>🏔️ Casas y departamentos de lujo con vista al lago</li>\n    <li>🛥️ Amenities premium: Muelle privado, spa, concierge</li>\n    <li>🔐 Seguridad 24/7</li>\n    <li>💎 Inversión desde USD 350.000</li>\n    <li>🗓️ Entrega estimada: 2026</li>\n  </ul>\n  \n  <p>Si tenés alguna consulta o querés conocer esta oportunidad única de inversión en la Patagonia, no dudes en responder este email.</p>\n  \n  <p style=\"margin-top: 30px;\">¡Saludos cordiales!</p>\n  <p><strong>Equipo de Ventas</strong><br>\n  Development A</p>\n</body>\n</html>",
+        "options": {
+          "appendAttribution": false,
+          "attachmentsUi": {
+            "attachmentsBinary": [
+              {
+                "property": "data"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        450,
+        300
+      ],
+      "id": "send-email-development-a-001",
+      "name": "Send development-a Email"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "response-brochure-development-b",
+              "name": "response",
+              "value": "=¡Listo! Te acabo de enviar el brochure de Development A a {{ $('Execute Workflow Trigger').item.json.email }}. Revisá tu bandeja de entrada (y spam por las dudas). ¿Hay algo más en lo que pueda ayudarte?",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        700,
+        -300
+      ],
+      "id": "format-output-development-b-001",
+      "name": "Format Output development-b"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "response-brochure-development-c",
+              "name": "response",
+              "value": "=¡Listo! Te acabo de enviar el brochure de Development A a {{ $('Execute Workflow Trigger').item.json.email }}. Revisá tu bandeja de entrada (y spam por las dudas). ¿Hay algo más en lo que pueda ayudarte?",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        700,
+        -100
+      ],
+      "id": "format-output-development-c-001",
+      "name": "Format Output development-c"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "response-brochure-sanluis",
+              "name": "response",
+              "value": "=¡Listo! Te acabo de enviar el brochure de Development A a {{ $('Execute Workflow Trigger').item.json.email }}. Revisá tu bandeja de entrada (y spam por las dudas). ¿Hay algo más en lo que pueda ayudarte?",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        700,
+        100
+      ],
+      "id": "format-output-sanluis-001",
+      "name": "Format Output development-d"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "response-brochure-development-a",
+              "name": "response",
+              "value": "=¡Listo! Te acabo de enviar el brochure de Development A a {{ $('Execute Workflow Trigger').item.json.email }}. Revisá tu bandeja de entrada (y spam por las dudas). ¿Hay algo más en lo que pueda ayudarte?",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        700,
+        300
+      ],
+      "id": "format-output-development-a-001",
+      "name": "Format Output development-a"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "response-brochure-default",
+              "name": "response",
+              "value": "No pude identificar el proyecto que mencionaste. Los proyectos disponibles son: Development A, Development A, Development A y Development A. ¿Cuál te interesa?",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        200,
+        500
+      ],
+      "id": "format-output-default-001",
+      "name": "Format Output Default"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "rules": [
+            {
+              "outputKey": "development-b",
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                },
+                "conditions": [
+                  {
+                    "id": "development-b-route",
+                    "leftValue": "={{ $json.proyecto.toLowerCase() }}",
+                    "rightValue": "development-b",
+                    "operator": {
+                      "type": "string",
+                      "operation": "contains"
+                    }
+                  }
+                ],
+                "combinator": "or"
+              }
+            },
+            {
+              "outputKey": "development-c",
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                },
+                "conditions": [
+                  {
+                    "id": "development-c-route",
+                    "leftValue": "={{ $json.proyecto.toLowerCase() }}",
+                    "rightValue": "development-c",
+                    "operator": {
+                      "type": "string",
+                      "operation": "contains"
+                    }
+                  }
+                ],
+                "combinator": "or"
+              }
+            },
+            {
+              "outputKey": "sanluis",
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                },
+                "conditions": [
+                  {
+                    "id": "sanluis-route",
+                    "leftValue": "={{ $json.proyecto.toLowerCase() }}",
+                    "rightValue": "development-d",
+                    "operator": {
+                      "type": "string",
+                      "operation": "contains"
+                    }
+                  }
+                ],
+                "combinator": "or"
+              }
+            },
+            {
+              "outputKey": "development-a",
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                },
+                "conditions": [
+                  {
+                    "id": "development-a-route",
+                    "leftValue": "={{ $json.proyecto.toLowerCase() }}",
+                    "rightValue": "development-a",
+                    "operator": {
+                      "type": "string",
+                      "operation": "contains"
+                    }
+                  }
+                ],
+                "combinator": "or"
+              }
+            }
+          ],
+          "fallbackOutput": "extra"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        -200,
+        0
+      ],
+      "id": "route-project-001",
+      "name": "Route by Project"
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Route by Project",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route by Project": {
+      "main": [
+        [
+          {
+            "node": "Download development-b Brochure",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Download development-c Brochure",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Download development-d Brochure",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Download development-a Brochure",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format Output Default",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download development-b Brochure": {
+      "main": [
+        [
+          {
+            "node": "Send development-b Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download development-c Brochure": {
+      "main": [
+        [
+          {
+            "node": "Send development-c Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download development-d Brochure": {
+      "main": [
+        [
+          {
+            "node": "Send development-d Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download development-a Brochure": {
+      "main": [
+        [
+          {
+            "node": "Send development-a Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send development-b Email": {
+      "main": [
+        [
+          {
+            "node": "Format Output development-b",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send development-c Email": {
+      "main": [
+        [
+          {
+            "node": "Format Output development-c",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send development-d Email": {
+      "main": [
+        [
+          {
+            "node": "Format Output development-d",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send development-a Email": {
+      "main": [
+        [
+          {
+            "node": "Format Output development-a",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner"
+  }
+}

@@ -1,0 +1,180 @@
+{
+  "name": "ML Tool - Stock Productos",
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "id": "t4-trigger",
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        208,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT access_token FROM ml_tokens WHERE app_id = 'vitagel' LIMIT 1",
+        "options": {}
+      },
+      "id": "t4-get-token",
+      "name": "Get ML Token",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        432,
+        304
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "url": "https://api.mercadolibre.com/users/<SELLER_ID>/items/search",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "status",
+              "value": "active"
+            },
+            {
+              "name": "limit",
+              "value": "50"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Get ML Token').item.json.access_token }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "t4-search",
+      "name": "Search Seller Items",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        640,
+        304
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "url": "=https://api.mercadolibre.com/items?ids={{ $json.results.join(',') }}&attributes=id,title,available_quantity,status",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Get ML Token').item.json.access_token }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "t4-get-stock",
+      "name": "Get Stock Details",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        864,
+        304
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const allItems = $input.all().map(i => i.json);\n\nlet products = allItems\n  .filter(i => i.code === 200 && i.body)\n  .map(i => i.body);\n\nif (products.length === 0) {\n  return [{ json: { result: 'No se pudo obtener info de stock.' } }];\n}\n\nconst totalStock = products.reduce((sum, p) => sum + (p.available_quantity || 0), 0);\nconst sinStock = products.filter(p => (p.available_quantity || 0) === 0);\nconst bajoStock = products.filter(p => p.available_quantity > 0 && p.available_quantity <= 5);\n\nlet result = `📊 RESUMEN DE STOCK VITAGEL\\n`;\nresult += `Total productos activos: ${products.length}\\n`;\nresult += `Stock total: ${totalStock} unidades\\n`;\nresult += `Sin stock: ${sinStock.length}\\n`;\nresult += `Stock bajo (≤5): ${bajoStock.length}\\n\\n`;\n\nresult += `DETALLE:\\n`;\nproducts.forEach((p, i) => {\n  const emoji = p.available_quantity === 0 ? '🔴' : p.available_quantity <= 5 ? '🟡' : '🟢';\n  result += `${emoji} ${p.title}\\n   Stock: ${p.available_quantity} | ID: ${p.id}\\n\\n`;\n});\n\nreturn [{ json: { result } }];"
+      },
+      "id": "t4-format",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1088,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## ML Tool - Stock Productos\n**Input**: ninguno\n**Output**: Resumen de stock de todos los productos activos con alertas\n**Llamado por**: AI Agent Lía via toolWorkflow"
+      },
+      "id": "t4-sticky",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        160,
+        128
+      ]
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get ML Token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get ML Token": {
+      "main": [
+        [
+          {
+            "node": "Search Seller Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search Seller Items": {
+      "main": [
+        [
+          {
+            "node": "Get Stock Details",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Stock Details": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Argentina/Buenos_Aires",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "Q7Re72V4C7cxIQNR"
+  }
+}

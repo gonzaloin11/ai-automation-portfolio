@@ -1,0 +1,471 @@
+{
+  "name": "Workflow C - Review & Upload Reminders",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "expense-reminders",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 6
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Schedule (Every 6 Hours)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT DISTINCT chat_id FROM chat_state WHERE chat_id IS NOT NULL LIMIT 1"
+      },
+      "id": "get-active-chats",
+      "name": "Get Active Chats",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        300,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM expense_records WHERE (vista_por_usuario IS NULL OR vista_por_usuario = false) AND id_transaccion IS NOT NULL ORDER BY fecha_creacion DESC LIMIT 10"
+      },
+      "id": "get-pending-reviews",
+      "name": "Get Pending Reviews",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        520,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "has-items",
+              "leftValue": "={{ $json.length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "has-pending-reviews",
+      "name": "Has Pending?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        740,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "loop-reviews",
+      "name": "Loop Reviews",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        960,
+        150
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "<ID>",
+        "text": "Gasto pendiente de revision:\n\n- Servicio: {{ $json.servicio_comercio }}\n- Importe: ${{ $json.importe }}\n- ID: {{ $json.id_transaccion }}\n\nToca para marcar como visto:",
+        "additionalFields": {
+          "replyMarkup": "inlineKeyboard",
+          "inlineKeyboard": {
+            "rows": [
+              {
+                "row": {
+                  "buttons": [
+                    {
+                      "text": "Marcar como visto",
+                      "additionalFields": {
+                        "callbackData": "visto:{{ $json.id_transaccion }}"
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      },
+      "id": "send-review-reminder",
+      "name": "Send Review Reminder",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1180,
+        150
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "<ID>",
+        "text": "No hay gastos pendientes de revision.",
+        "additionalFields": {}
+      },
+      "id": "no-pending-reviews",
+      "name": "No Pending Reviews",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        960,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM expense_records WHERE (forma_pago IS NULL OR forma_pago = '') AND id_transaccion IS NOT NULL ORDER BY fecha_creacion DESC LIMIT 10"
+      },
+      "id": "get-pending-payments",
+      "name": "Get Pending Payments",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        520,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "has-payments",
+              "leftValue": "={{ $json.length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "has-pending-payments",
+      "name": "Has Payments?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        740,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "loop-payments",
+      "name": "Loop Payments",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        960,
+        350
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "<ID>",
+        "text": "Gasto sin forma de pago:\n\n- Servicio: {{ $json.servicio_comercio }}\n- Importe: ${{ $json.importe }}\n- ID: {{ $json.id_transaccion }}\n\nSelecciona forma de pago:",
+        "additionalFields": {
+          "replyMarkup": "inlineKeyboard",
+          "inlineKeyboard": {
+            "rows": [
+              {
+                "row": {
+                  "buttons": [
+                    {
+                      "text": "Transferencia",
+                      "additionalFields": {
+                        "callbackData": "metodo:Transferencia|{{ $json.id_transaccion }}"
+                      }
+                    },
+                    {
+                      "text": "Cheque",
+                      "additionalFields": {
+                        "callbackData": "metodo:Cheque|{{ $json.id_transaccion }}"
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "row": {
+                  "buttons": [
+                    {
+                      "text": "Efectivo",
+                      "additionalFields": {
+                        "callbackData": "metodo:Efectivo|{{ $json.id_transaccion }}"
+                      }
+                    },
+                    {
+                      "text": "Tarjeta",
+                      "additionalFields": {
+                        "callbackData": "metodo:Tarjeta|{{ $json.id_transaccion }}"
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      },
+      "id": "send-payment-reminder",
+      "name": "Send Payment Reminder",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1180,
+        350
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "<ID>",
+        "text": "No hay gastos pendientes de forma de pago.",
+        "additionalFields": {}
+      },
+      "id": "no-pending-payments",
+      "name": "No Pending Payments",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        960,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"success\": true, \"message\": \"Reminders processed\"}",
+        "options": {}
+      },
+      "id": "webhook-response",
+      "name": "Webhook Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1400,
+        400
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get Active Chats",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule (Every 6 Hours)": {
+      "main": [
+        [
+          {
+            "node": "Get Active Chats",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Active Chats": {
+      "main": [
+        [
+          {
+            "node": "Get Pending Reviews",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get Pending Payments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Pending Reviews": {
+      "main": [
+        [
+          {
+            "node": "Has Pending?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Pending?": {
+      "main": [
+        [
+          {
+            "node": "Loop Reviews",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Pending Reviews",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Reviews": {
+      "main": [
+        [
+          {
+            "node": "Send Review Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Webhook Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Review Reminder": {
+      "main": [
+        [
+          {
+            "node": "Loop Reviews",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Pending Payments": {
+      "main": [
+        [
+          {
+            "node": "Has Payments?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Payments?": {
+      "main": [
+        [
+          {
+            "node": "Loop Payments",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Pending Payments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Payments": {
+      "main": [
+        [
+          {
+            "node": "Send Payment Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Webhook Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Payment Reminder": {
+      "main": [
+        [
+          {
+            "node": "Loop Payments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false
+}

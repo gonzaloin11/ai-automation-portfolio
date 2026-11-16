@@ -1,0 +1,480 @@
+{
+  "name": "SCENARIO 2-SLACK SUMMARY 31.03",
+  "nodes": [
+    {
+      "parameters": {
+        "jsCode": "// Extract threads from webhook body\nconst webhookData = $input.first().json;\nconst threads = webhookData.body || [];\n\nreturn threads.map(thread => {\n  const text = (thread.threadText || '').trim()\n    .replace(/<@[A-Z0-9]+>/g, '')\n    .replace(/<#[A-Z0-9]+\\|[^>]+>/g, '')\n    .replace(/<(https?:\\/\\/[^|>]+)\\|[^>]+>/g, '$1')\n    .replace(/<(https?:\\/\\/[^>]+)>/g, '$1')\n    .replace(/\\s{3,}/g, '\\n\\n')\n    .trim();\n\n  return {\n    json: {\n      threadText: text,\n      messageCount: thread.messageCount || 0,\n      channel: thread.channel || '#unknown'\n    }\n  };\n});"
+      },
+      "id": "code-2",
+      "name": "Clean Messages",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -272,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "f1",
+              "name": "channel",
+              "value": "={{ $json.channel }}",
+              "type": "string"
+            },
+            {
+              "id": "f2",
+              "name": "category",
+              "value": "={{ $json.category }}",
+              "type": "string"
+            },
+            {
+              "id": "e0bc2dea-7605-4b70-a5aa-ca605585481f",
+              "name": "summary",
+              "value": "={{ $json.summary }}",
+              "type": "string"
+            },
+            {
+              "id": "e17760a4-7665-4b39-ae96-521d938ceb30",
+              "name": "Urgency",
+              "value": "={{ $json.urgency }}",
+              "type": "string"
+            },
+            {
+              "id": "f3",
+              "name": "generatedAt",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            },
+            {
+              "id": "fb36f408-6583-4444-8d4e-4e433c837cd0",
+              "name": "keypoints",
+              "value": "={{ $json.keyPoints }}",
+              "type": "array"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "ef-2",
+      "name": "Format Output",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        976,
+        336
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://jsonplaceholder.typicode.com/posts",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "channel",
+              "value": "={{ $json.channel }}"
+            },
+            {
+              "name": "text",
+              "value": "={{ $json.summary }}"
+            },
+            {
+              "name": "=Urgency",
+              "value": "={{ $json.Urgency }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "hr-2",
+      "name": "Send to Slack",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        352,
+        -288
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Scenario 2 — Summarize Slack Thread\n\nWebhook → Code (clean/filter messages) → LLM Chain (summarize) → Edit Fields (format) → HTTP POST (Slack)\n\n**Pattern:** Data Cleaning → AI Summarization → Formatted Notification\n**Code node:** Simulates receiving Slack thread JSON, cleans to text-only format\n**LLM output:** TL;DR + Key Points + Action Items + Status\n\n⚠️ Wire: OpenAI Chat Model → ai_languageModel on Summarize Thread",
+        "height": 220,
+        "width": 500
+      },
+      "id": "sn-2",
+      "name": "Note - Overview",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1168,
+        -304
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Code Node — Clean Messages\nReceives 113 mock Slack threads via Webhook POST body (62 channels, 40+ countries).\nUnwraps body[] array from webhook envelope, strips Slack markup artifacts (<@mentions>, <#channels>, link formatting), collapses whitespace.\nOutputs per thread: threadText, messageCount, channel.\nCoverage: Payroll ops, tax filing, compliance (GDPR/SOX/SOC2), benefits enrollment, parental leave, severance, contractor misclassification, currency hedging, visa renewals, data breaches, union organizing, D&I analytics, performance calibration, whistleblower channels, military leave, and more.\nIn production: Replace mock data with real Slack API payload. Add filtering for bot messages (subtype: 'bot_message'), system messages (subtype: 'channel_join'), and reactions. Strip file attachments and block kit metadata to minimize token consumption.",
+        "height": 200,
+        "width": 320
+      },
+      "id": "sn-code",
+      "name": "Note - Code Node",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1088,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "slack-thread",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -496,
+        112
+      ],
+      "id": "2c758efd-2ff3-4644-9ae0-97f6809f7023",
+      "name": "Webhook"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=thread_text:  {{ $json.threadText }}\nchannel: {{ $json.channel }}\nmessageCount: {{ $json.messageCount }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "=# AI Agent System Prompt — Slack Thread Batch Processor\n\n---\n\n## Role\n\nYou are an **intelligent executive assistant** processing **MULTIPLE Slack thread conversations in a single batch**.\n\nYour task is to analyze each thread independently and return a **structured JSON array**, where each element represents a fully processed and classified ticket.\n\nYou must be **precise**, **consistent**, and **deterministic**. Your output will be parsed by an automated system.\n\n---\n\n## Input Format\n\nYou will receive a **JSON array** where each element contains:\n\n| Field          | Type    | Description                        |\n| -------------- | ------- | ---------------------------------- |\n| `threadText`   | string  | Full Slack conversation            |\n| `messageCount` | integer | Number of messages                 |\n| `channel`      | string  | Slack channel name                 |\n| `index`        | integer | Position in array (0-based)        |\n\n**Example:**\n\n```json\n[\n  {\n    \"threadText\": \"[maria.gonzalez]: Q2 payroll processing delayed...\",\n    \"messageCount\": 7,\n    \"channel\": \"#payroll-ops\",\n    \"index\": 0\n  }\n]\n```\n\n---\n\n## Your Task\n\nFor **EACH** thread:\n\n1. **Understand** the core issue\n2. **Classify** the topic\n3. **Assess** urgency\n4. **Extract** actions and risks\n5. **Generate** a concise executive summary\n\n---\n\n## Output Requirements (STRICT)\n\nYou **MUST** return **ONLY valid JSON**.\n\n- **No** explanations\n- **No** markdown\n- **No** extra text\n- **No** trailing commas\n- Output must be **directly parseable**\n\n---\n\n## Output Format\n\n```json\n{\n  \"tickets\": [\n    {\n      \"ticketId\": \"string\",\n      \"index\": \"number\",\n      \"channel\": \"string\",\n      \"category\": \"PAYROLL | BENEFITS | COMPLIANCE | ONBOARDING | TAX | HR | IT | FINANCE | LEGAL | OTHER\",\n      \"urgency\": \"LOW | MEDIUM | HIGH | CRITICAL\",\n      \"summary\": \"string\",\n      \"originalBody\": \"string\",\n      \"actionItems\": [\"string\"],\n      \"risks\": [\"string\"],\n      \"keyEntities\": {\n        \"countries\": [\"string\"],\n        \"employeesAffected\": \"number\",\n        \"contractorsAffected\": \"number\"\n      }\n    }\n  ]\n}\n```\n\n## 🚨 CRITICAL OUTPUT CONSTRAINTS (HIGHEST PRIORITY)\n\nThe response MUST be a **raw JSON object**.\n\n### STRICT RULES:\n\n- DO NOT wrap the JSON in any field (e.g., \"text\", \"output\", \"response\")\n- DO NOT stringify the JSON\n- DO NOT escape the JSON\n- DO NOT add any outer structure\n\n---\n\n### ❌ INVALID OUTPUT EXAMPLES:\n\n```json\n{ \"text\": \"{\\\"tickets\\\": [...]}\" }\n\n{ \"output\": { \"tickets\": [...] } }\n\n{ \"response\": { \"tickets\": [...] } }\n\n\n\n---\n\n## Classification Rules\n\n### Categories\n\n| Category             | Triggers                              |\n| -------------------- | ------------------------------------- |\n| **PAYROLL**          | Salary, delays, payments              |\n| **BENEFITS**         | Insurance, perks, enrollment          |\n| **COMPLIANCE/LEGAL** | Laws, audits, regulations             |\n| **ONBOARDING**       | New hires, setup                      |\n| **TAX**              | Filings, tax issues                   |\n| **HR**               | Leave, employee relations             |\n| **IT**               | Systems, access, security             |\n| **FINANCE**          | Costs, budgeting, FX                  |\n| **OTHER**            | Fallback                              |\n\n### Urgency Rules\n\n| Level        | Criteria                                                        |\n| ------------ | --------------------------------------------------------------- |\n| **CRITICAL** | Payroll failures · Legal/compliance risk with deadlines · Security breaches · Missing payments |\n| **HIGH**     | Deadlines within days · Compliance gaps · Employee impact but not immediate crisis |\n| **MEDIUM**   | Operational issues · Planning / setup                           |\n| **LOW**      | Informational or minor requests                                 |\n\n---\n\n## Extraction Rules\n\n### Summary\n\n- **One sentence only**\n- Clear and **executive-level**\n- Include **scope + issue + impact**\n\n### Action Items\n\n- Extract **explicit or implied** actions\n- Use **imperative verbs** (e.g., *\"Notify employees\"*, *\"Reprocess payments\"*)\n\n### Risks\n\n- Include **legal**, **financial**, **operational** risks\n- If none → return empty array `[]`\n\n### Key Entities\n\n- Extract **countries** mentioned\n- Estimate:\n  - `employeesAffected`\n  - `contractorsAffected`\n- If unknown → use `0`\n\n---\n\n## Determinism Rules (VERY IMPORTANT)\n\n- **Always** include **ALL** fields\n- **Never** return `null` → use:\n  - `\"\"` for strings\n  - `0` for numbers\n  - `[]` for arrays\n- **ticketId format:** `\"TICKET-{index+1}\"`\n\n---\n\n## Example Output\n\n```json\n{\n  \"tickets\": [\n    {\n      \"ticketId\": \"TICKET-1\",\n      \"index\": 0,\n      \"channel\": \"#payroll-ops\",\n      \"category\": \"PAYROLL\",\n      \"urgency\": \"CRITICAL\",\n      \"summary\": \"Global payroll delay caused by payment provider outage affecting multiple regions\",\n      \"originalBody\": \"[maria.gonzalez]: Q2 payroll processing delayed...\",\n      \"actionItems\": [\n        \"Notify affected employees\",\n        \"Monitor provider recovery\",\n        \"Assess compliance exposure\"\n      ],\n      \"risks\": [\n        \"Legal penalties for delayed salary payments\",\n        \"Employee dissatisfaction\"\n      ],\n      \"keyEntities\": {\n        \"countries\": [\"Argentina\", \"Brazil\"],\n        \"employeesAffected\": 47,\n        \"contractorsAffected\": 0\n      }\n    }\n  ]\n}\n```\n\n---\n\n## Final Instruction\n\nProcess **ALL** threads in the input array. Return **ONE** JSON object with a `\"tickets\"` array containing **ALL** processed threads.\n\n- **Do not** skip any thread.\n- **Do not** reorder.\n- **Do not** explain.\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        176,
+        112
+      ],
+      "id": "dcff86cd-125c-48f9-9afc-a91eebf3c93b",
+      "name": "AI Agent- Batch Summarizer",
+      "executeOnce": true,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4.1-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        192,
+        336
+      ],
+      "id": "2d4e3bca-059a-448c-906f-5948e253f475",
+      "name": "OpenAI Chat Model"
+    },
+    {
+      "parameters": {
+        "batchSize": 10,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -48,
+        128
+      ],
+      "id": "9347ee4d-185a-4a7a-aacb-8d4c630e27a6",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"tickets\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"type\": \"object\",\n        \"properties\": {\n          \"ticketId\": {\n            \"type\": \"string\",\n            \"description\": \"Unique ticket identifier in format TICKET-{index+1}\"\n          },\n          \"index\": {\n            \"type\": \"integer\",\n            \"description\": \"Position of the thread in the input array (0-based)\"\n          },\n          \"channel\": {\n            \"type\": \"string\",\n            \"description\": \"Slack channel name\"\n          },\n          \"category\": {\n            \"type\": \"string\",\n            \"enum\": [\"PAYROLL\", \"BENEFITS\", \"COMPLIANCE\", \"ONBOARDING\", \"TAX\", \"HR\", \"IT\", \"FINANCE\", \"LEGAL\", \"OTHER\"],\n            \"description\": \"Classification category\"\n          },\n          \"urgency\": {\n            \"type\": \"string\",\n            \"enum\": [\"LOW\", \"MEDIUM\", \"HIGH\", \"CRITICAL\"],\n            \"description\": \"Urgency level\"\n          },\n          \"summary\": {\n            \"type\": \"string\",\n            \"description\": \"One sentence executive summary (max 15 words)\"\n          },\n          \"originalBody\": {\n            \"type\": \"string\",\n            \"description\": \"Full original thread text\"\n          },\n          \"actionItems\": {\n            \"type\": \"array\",\n            \"items\": {\n              \"type\": \"string\"\n            },\n            \"description\": \"List of action items with [Owner] prefix\"\n          },\n          \"risks\": {\n            \"type\": \"array\",\n            \"items\": {\n              \"type\": \"string\"\n            },\n            \"description\": \"List of legal, financial, operational risks\"\n          },\n          \"keyEntities\": {\n            \"type\": \"object\",\n            \"properties\": {\n              \"countries\": {\n                \"type\": \"array\",\n                \"items\": {\n                  \"type\": \"string\"\n                },\n                \"description\": \"Countries mentioned in the thread\"\n              },\n              \"employeesAffected\": {\n                \"type\": \"integer\",\n                \"description\": \"Number of employees affected (0 if unknown)\"\n              },\n              \"contractorsAffected\": {\n                \"type\": \"integer\",\n                \"description\": \"Number of contractors affected (0 if unknown)\"\n              }\n            },\n            \"required\": [\"countries\", \"employeesAffected\", \"contractorsAffected\"]\n          }\n        },\n        \"required\": [\"ticketId\", \"index\", \"channel\", \"category\", \"urgency\", \"summary\", \"originalBody\", \"actionItems\", \"risks\", \"keyEntities\"]\n      }\n    }\n  },\n  \"required\": [\"tickets\"]\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        320,
+        336
+      ],
+      "id": "04697b36-2e9e-47fe-abc9-57ce61b84f58",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "content": "# DATA PROCESSING AND TRANSFORMATION",
+        "height": 352,
+        "width": 480
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -640,
+        -80
+      ],
+      "id": "45764c27-fd16-4547-9b04-86afa95fca01",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "# CLASSIFICATION & SLACK THREAD SUMMARY",
+        "height": 96,
+        "width": 640,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        96,
+        -48
+      ],
+      "id": "2bf17988-f77e-4143-b4e3-3336bbb86719",
+      "name": "Sticky Note3"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse batch AI output and split into individual items\n\nconst input = $input.first().json;\nlet summaries = [];\n\n// Extract output from AI Agent response\nconst rawOutput = input.output || input.text || input.response || input;\n\n// ---------- Helper: Safe JSON Parse ----------\nfunction safeParse(data) {\n  if (typeof data === 'string') {\n    const cleaned = data\n      .replace(/^```json\\s*/i, '')\n      .replace(/```\\s*$/i, '')\n      .trim();\n    return JSON.parse(cleaned);\n  }\n  return data;\n}\n\n// ---------- Helper: Extract tickets array ----------\nfunction extractTickets(parsed) {\n  if (!parsed) return null;\n\n  if (Array.isArray(parsed)) return parsed;\n\n  if (parsed.tickets && Array.isArray(parsed.tickets)) {\n    return parsed.tickets;\n  }\n\n  if (parsed.output && parsed.output.tickets && Array.isArray(parsed.output.tickets)) {\n    return parsed.output.tickets;\n  }\n\n  if (parsed.summaries && Array.isArray(parsed.summaries)) {\n    return parsed.summaries;\n  }\n\n  return null;\n}\n\ntry {\n  const parsed = safeParse(rawOutput);\n  const extracted = extractTickets(parsed);\n\n  if (!extracted) {\n    throw new Error('No valid tickets array found in response');\n  }\n\n  summaries = extracted.map((s, idx) => {\n    // ---------- SUMMARY PROCESSING ----------\n    const summary =\n      typeof s.summary === 'string' && s.summary.trim().length > 0\n        ? s.summary.trim()\n        : (typeof s.tldr === 'string' ? s.tldr.trim() : 'No summary generated');\n\n    // Optional: enforce max length (clean for UI)\n    const normalizedSummary = summary.length > 300\n      ? summary.substring(0, 297) + '...'\n      : summary;\n\n    return {\n      index: typeof s.index === 'number' ? s.index : idx,\n\n      // ✅ KEEP ORIGINAL SUMMARY\n      summary: normalizedSummary,\n\n      // ✅ TLDR (can be same or shorter version)\n      tldr: normalizedSummary,\n\n      participants: Array.isArray(s.participants) ? s.participants : [],\n\n      keyPoints: Array.isArray(s.keyPoints)\n        ? s.keyPoints\n        : (s.actionItems || []).slice(0, 3),\n\n      actionItems: Array.isArray(s.actionItems) ? s.actionItems : [],\n\n      urgency: ['HIGH', 'MEDIUM', 'LOW', 'CRITICAL'].includes(s.urgency)\n        ? s.urgency\n        : 'MEDIUM',\n\n      status: ['Resolved', 'In Progress', 'Blocked', 'Needs Decision'].includes(s.status)\n        ? s.status\n        : 'In Progress',\n\n      channel: s.channel || input.channel || '#unknown',\n\n      category: s.category || 'OTHER',\n\n      batchProcessedAt: new Date().toISOString()\n    };\n  });\n\n} catch (error) {\n  return [\n    {\n      json: {\n        error: true,\n        errorMessage: error.message,\n        rawOutput:\n          typeof rawOutput === 'string'\n            ? rawOutput.substring(0, 1000)\n            : JSON.stringify(rawOutput).substring(0, 1000),\n        timestamp: new Date().toISOString()\n      }\n    }\n  ];\n}\n\nreturn summaries.map(summary => ({\n  json: summary\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        528,
+        112
+      ],
+      "id": "2b0e8e06-86a6-415f-90f1-cc63c34d34c3",
+      "name": "PROCESSING RECIEVED DATA"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "condition-1",
+              "leftValue": "={{ $json.summary }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-error-check",
+      "name": "Check Data Received",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        752,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://jsonplaceholder.typicode.com/posts",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "channel",
+              "value": "#alerts-errors"
+            },
+            {
+              "name": "text",
+              "value": "=⚠️ ERROR — Slack Thread Summarizer failed.\nError: {{ $json.errorMessage || 'Unknown error — no summary data received' }}\nTimestamp: {{ $json.timestamp || $now.toISO() }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "hr-error-slack",
+      "name": "Send Error to Slack",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        976,
+        64
+      ]
+    },
+    {
+      "parameters": {
+        "content": "# ERROR HANDLING ",
+        "height": 272,
+        "width": 448,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        752,
+        0
+      ],
+      "id": "f6758d18-853c-447b-b994-7ae927f33970",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "# CONFIRMATION REPLY",
+        "height": 336,
+        "width": 384,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        256,
+        -416
+      ],
+      "id": "9833f774-e513-41c4-8736-3402ede55055",
+      "name": "Sticky Note2"
+    }
+  ],
+  "connections": {
+    "Clean Messages": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Output": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send to Slack": {
+      "main": [
+        []
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Clean Messages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent- Batch Summarizer": {
+      "main": [
+        [
+          {
+            "node": "PROCESSING RECIEVED DATA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent- Batch Summarizer",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [
+          {
+            "node": "Send to Slack",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "AI Agent- Batch Summarizer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI Agent- Batch Summarizer",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PROCESSING RECIEVED DATA": {
+      "main": [
+        [
+          {
+            "node": "Check Data Received",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Data Received": {
+      "main": [
+        [
+          {
+            "node": "Format Output",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Error to Slack",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "oxSAI1uJxqYptTP5"
+  }
+}

@@ -1,0 +1,588 @@
+{
+  "name": "Asistente de ventas",
+  "nodes": [
+    {
+      "parameters": {
+        "formTitle": "TURNO PROPIEDADES",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Nombre",
+              "placeholder": "Nombre y apellido",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Operacion",
+              "placeholder": "Comprar, Alquilar",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Zona/Barrio",
+              "placeholder": "Tigre, Quilmes,etc"
+            },
+            {
+              "fieldLabel": "Presupuesto"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.3,
+      "position": [
+        -1424,
+        144
+      ],
+      "id": "1705e9b5-8bfd-459b-ab4c-87412975da9b",
+      "name": "On form submission"
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "base": {
+          "__rl": true,
+          "value": "<AIRTABLE_BASE_ID>",
+          "mode": "list",
+          "cachedResultName": "<redacted>",
+          "cachedResultUrl": "<redacted>"
+        },
+        "table": {
+          "__rl": true,
+          "value": "<AIRTABLE_TABLE_ID>",
+          "mode": "list",
+          "cachedResultName": "<redacted>",
+          "cachedResultUrl": "<redacted>"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Name": "={{ $json.Nombre }}",
+            "Rol": "={{ $json.Operacion }}",
+            "Empresa": "={{ $json.Presupuesto }}",
+            "Email": "={{ $json['Zona/Barrio'] }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Name",
+              "displayName": "Name",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Email",
+              "displayName": "Email",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Empresa",
+              "displayName": "Empresa",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Rol",
+              "displayName": "Rol",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "¿En qué servicio de automatización estás interesado?",
+              "displayName": "¿En qué servicio de automatización estás interesado?",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "Escenario Contable",
+                  "value": "Escenario Contable"
+                },
+                {
+                  "name": "Dynamic Sales Proposal System",
+                  "value": "Dynamic Sales Proposal System"
+                },
+                {
+                  "name": "Control Operativo y Contable",
+                  "value": "Control Operativo y Contable"
+                }
+              ],
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "¿Cuál es tu presupuesto?",
+              "displayName": "¿Cuál es tu presupuesto?",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "1.000 U$S A 2.000 U$S",
+                  "value": "1.000 U$S A 2.000 U$S"
+                },
+                {
+                  "name": "2.000 U$S A 5.000 U$S",
+                  "value": "2.000 U$S A 5.000 U$S"
+                },
+                {
+                  "name": "5.000 U$S A 7.000 U$S",
+                  "value": "5.000 U$S A 7.000 U$S"
+                },
+                {
+                  "name": "+ 10.000 U$S",
+                  "value": "+ 10.000 U$S"
+                }
+              ],
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "¿Para cuándo esperas implementarlo?",
+              "displayName": "¿Para cuándo esperas implementarlo?",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "Lo antes posible",
+                  "value": "Lo antes posible"
+                },
+                {
+                  "name": "2 Semanas",
+                  "value": "2 Semanas"
+                },
+                {
+                  "name": "1 Mes",
+                  "value": "1 Mes"
+                },
+                {
+                  "name": "+ de 1 Mes",
+                  "value": "+ de 1 Mes"
+                }
+              ],
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Describinos brevemente el proyecto",
+              "displayName": "Describinos brevemente el proyecto",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        -1216,
+        144
+      ],
+      "id": "9fda5849-ed51-4d76-9be6-e366681ef330",
+      "name": "Create a record"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=\nNombre:  {{ $json.fields.Name }}\nEmpresa: {{ $json.fields.Empresa }}\nZona: {{ $json.fields.Email }}\nOperacion: {{ $json.fields.Rol }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "Eres un asistente experto en redaccion de correos electronico, quiero que en base a la ifnromacion que obtengas del usuario le redactes un mensaje explicandole porque las propiedades en \"Cusco Gonardo Real Estate\" son las mas convenientes tanto para las operaciones de alquiler o compra invitandolo a que entienda que hay muy buenas piscinas unicas e irrepetibles en la zona. Es importante que use buenos argumentos de venta.\n\nSi elige alquilar indicale porque las opciones de alquiler son las mejores en base a las vistas moradas deserticas tambien\n\nSi elige comprar indicale porque las opciones de ocmpra son las mejores en base a las vistas indigo del valle pequen donde estna todas las propiedades en venta."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        -864,
+        80
+      ],
+      "id": "e62b7092-0514-44cf-80ab-edb8a86093f3",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4.1-mini"
+        },
+        "responsesApiEnabled": false,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        -1024,
+        320
+      ],
+      "id": "ab48e112-1598-44ee-a1e8-12df2a6f9488",
+      "name": "OpenAI Chat Model"
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $json.id }}",
+        "tableName": "n8n_asistent_de_prueba",
+        "contextWindowLength": 10
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
+      "typeVersion": 1.3,
+      "position": [
+        -352,
+        224
+      ],
+      "id": "ce3c17dc-04ea-4e2f-af84-eca645ac835e",
+      "name": "Postgres Chat Memory"
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolDescription": "Base de datos vectorial",
+        "tableName": {
+          "__rl": true,
+          "value": "n8n_test_inmob",
+          "mode": "list",
+          "cachedResultName": "<redacted>"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
+      "typeVersion": 1.3,
+      "position": [
+        -960,
+        560
+      ],
+      "id": "47c6c67d-0c7e-4169-9b80-2cc84a3a06cf",
+      "name": "Supabase Vector Store"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        -416,
+        672
+      ],
+      "id": "e7b2635e-cb28-4094-84e5-aed1430f92ae",
+      "name": "Embeddings OpenAI"
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"asunto_correo\": {\n      \"type\": \"string\",\n      \"description\": \"Asunto del correo electrónico\"\n    },\n    \"cuerpo_correo\": {\n      \"type\": \"string\",\n      \"description\": \"Contenido completo del cuerpo del correo electrónico\"\n    }\n  },\n  \"required\": [\"asunto_correo\", \"cuerpo_correo\"],\n  \"additionalProperties\": false\n}\n"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        -688,
+        368
+      ],
+      "id": "6697ba53-d347-4ef8-aa67-86a50d7c0497",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "af012847-587a-4a85-89f5-82898ac2f631",
+              "name": "asunto",
+              "value": "={{ $json.output.asunto_correo }}",
+              "type": "string"
+            },
+            {
+              "id": "67398e75-b578-4614-835e-67b61f930921",
+              "name": "Cuerpo",
+              "value": "={{ $json.output.cuerpo_correo }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -496,
+        0
+      ],
+      "id": "95f4b9ae-9bb9-407d-a4d9-ce0551ef5ac5",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "operation": "sendAndWait",
+        "sendTo": "you@example.com",
+        "subject": "=Requiere aprobacion",
+        "message": "=Mensaje con asunto :  {{ $('AI Agent').item.json.output.asunto_correo }}\n\n{{ $('AI Agent').item.json.output.cuerpo_correo }}",
+        "responseType": "freeText",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        -256,
+        16
+      ],
+      "id": "60b371fc-86ca-4b1d-a172-2057d31756ad",
+      "name": "Send message and wait for response"
+    },
+    {
+      "parameters": {
+        "inputText": "={{ $json.data.text }}",
+        "categories": {
+          "categories": [
+            {
+              "category": "Aprobado",
+              "description": "Vamos a considerar correos aprobados todos aquellos que indiquen mensajes de ejemplo tales como los indicados debajo:\n\n\"EXCELENTE\"\n\"VAMOS PARA ADELANTE\"\n\" ESTA OK\"\n\"MANDALO ASI\"\n\"MUY BIEN\"\n\"ENVIALO\""
+            },
+            {
+              "category": "Re-Generar",
+              "description": "=Vamos a considerar correos para re-generar todos aquellos que indiquen mensajes de ejemplo tales como los indicados debajo:\n\n\"Revisar\"\n\"Modificar esto\"\n\" Cambiale\"\n\"No me gusta esta parte\"\n\"Escribilo de esta forma\"\n"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.textClassifier",
+      "typeVersion": 1.1,
+      "position": [
+        -16,
+        32
+      ],
+      "id": "2c259102-444e-4374-89c3-5217c481f811",
+      "name": "Text Classifier"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Email: {{ $('AI Agent').item.json.output.cuerpo_correo }}\n\nFeedback: {{ $json.data.text }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "Eres un experto redactor de correos electrónicos tu tarea es recibir asunto y correo y modificar unicamente lo que te indica el usuario.\n\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        336,
+        336
+      ],
+      "id": "f082b788-e11f-41cb-999b-9218fd1fb4f6",
+      "name": "AI Agent1"
+    },
+    {
+      "parameters": {
+        "sendTo": "you@example.com",
+        "subject": "si",
+        "message": "=es aprobado y ademas esto  {{ $('Edit Fields').item.json.Cuerpo }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        448,
+        -64
+      ],
+      "id": "2fde5e47-38e5-4bd7-9d9a-17ef74764b17",
+      "name": "Send a message"
+    }
+  ],
+  "connections": {
+    "On form submission": {
+      "main": [
+        [
+          {
+            "node": "Create a record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a record": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Text Classifier",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "AI Agent1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres Chat Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase Vector Store": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings OpenAI": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Supabase Vector Store",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          },
+          {
+            "node": "AI Agent1",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Send message and wait for response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send message and wait for response": {
+      "main": [
+        [
+          {
+            "node": "Text Classifier",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Text Classifier": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "AI Agent1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent1": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
